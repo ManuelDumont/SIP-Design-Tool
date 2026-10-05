@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { LocationConfig } from '../types';
-import { Network, Download, RotateCcw, Save } from 'lucide-react';
+import { Network, Download, RotateCcw, Save, Plus } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { getCidrFromSubnetString, isValidIPv4, isInSameSubnet, getSubnetNetworkAddress } from '../utils/ip';
 import { Language, translations } from '../i18n/translations';
@@ -676,15 +676,16 @@ export function NetworkDiagram({
   // Direct editing helpers
   const handleUpdateLocationName = (locId: string, newName: string) => {
     if (!onUpdateLocations) return;
-    const updated = locations.map(l => l.id === locId ? { ...l, name: newName } : l);
+    const updated = locations.map(l => l.id === locId ? { ...l, locationName: newName } : l);
     onUpdateLocations(updated);
   };
 
   const handleUpdateCpeField = (cpeId: string, field: string, value: string) => {
     if (!onUpdateLocations) return;
+    const finalValue = field === 'hostname' ? value.toUpperCase() : value;
     const updated = locations.map(loc => ({
       ...loc,
-      cpes: (loc.cpes || []).map(cpe => cpe.id === cpeId ? { ...cpe, [field]: value } : cpe)
+      cpes: (loc.cpes || []).map(cpe => cpe.id === cpeId ? { ...cpe, [field]: finalValue } : cpe)
     }));
     onUpdateLocations(updated);
   };
@@ -712,7 +713,7 @@ export function NetworkDiagram({
     const validCount = (currentCpe?.pbxs || []).filter(p => p.ip?.trim()).length;
     const newPbx = {
       id: `pbx-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      name: `SIP Endpoint ${validCount + 1}`,
+      name: `SIP PBX ${validCount + 1}`,
       ip: cleanIp,
       brand: 'Overig'
     };
@@ -768,7 +769,7 @@ export function NetworkDiagram({
     const validCount = (currentCpe?.pbxs || []).filter(p => p.ip?.trim()).length;
     const newPbx = {
       id: `pbx-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
-      name: `SIP Endpoint ${validCount + 1}`,
+      name: `SIP PBX ${validCount + 1}`,
       ip: '',
       brand: 'Overig'
     };
@@ -873,7 +874,7 @@ export function NetworkDiagram({
   );
   const servicesText = allServices.join(' + ');
 
-  // Titel in de rode bovenbalk: "sIP Design" blijft altijd staan,
+  // Titel in de rode bovenbalk: "SIP Design" blijft altijd staan,
   // en eventuele klantgegevens en projectnummer worden daarachter geplaatst.
   const customerParts: string[] = [];
   if (effectiveCustomerName.trim()) {
@@ -884,8 +885,8 @@ export function NetworkDiagram({
   }
 
   const headerTitle = customerParts.length > 0
-    ? `sIP Design - ${customerParts.join(' - ')}`
-    : 'sIP Design';
+    ? `SIP Design - ${customerParts.join(' - ')}`
+    : 'SIP Design';
 
   const handleExportPNG = useCallback(async () => {
     if (!diagramRef.current) return;
@@ -998,7 +999,7 @@ export function NetworkDiagram({
   let globalCpeIndex = 0;
   
   const groups = locations.map((loc, groupIdx) => {
-    const locName = loc.locationName || 'Onbekende Locatie';
+    const locName = (loc.locationName || '').trim();
     const showDemarcationLine = Boolean(loc.showDemarcationLine);
     const cpes = loc.cpes;
     
@@ -1506,7 +1507,7 @@ export function NetworkDiagram({
             <div className="h-[60px] bg-[#E60000] flex items-center justify-between px-6 z-20 shrink-0 w-full">
               <div className="flex items-center gap-3">
                 <div className="text-white text-2xl font-medium tracking-tight flex items-center gap-2">
-                  <span className="font-semibold">sIP Design</span>
+                  <span className="font-semibold">SIP Design</span>
                   <span className="text-white/60 font-light">-</span>
                   <InlineEdit 
                     value={effectiveCustomerName} 
@@ -1746,17 +1747,31 @@ export function NetworkDiagram({
                     </div>
                   )}
                 </div>
-                {/* Locatienaam bij de hoofdrouter per locatie - DIRECT BEWERKBAAR */}
-                <div className="absolute -bottom-8 flex flex-col items-center z-30">
-                  <span className="text-xs font-bold text-slate-800 bg-white border border-slate-300 px-3 py-0.5 rounded-full whitespace-nowrap shadow-sm hover:border-blue-400">
-                    <InlineEdit 
-                      value={group.locName} 
-                      placeholder="Locatienaam" 
-                      onSave={(val) => handleUpdateLocationName(group.locId, val)}
-                      title="Klik om locatienaam direct aan te passen"
-                    />
-                  </span>
-                </div>
+                {/* Locatienaam bij de hoofdrouter per locatie */}
+                {group.locName ? (
+                  <div className="absolute -bottom-8 flex flex-col items-center z-30">
+                    <span className="text-xs font-bold text-slate-800 bg-white border border-slate-300 px-3 py-0.5 rounded-full whitespace-nowrap shadow-sm hover:border-blue-400">
+                      <InlineEdit 
+                        value={group.locName} 
+                        placeholder="" 
+                        onSave={(val) => handleUpdateLocationName(group.locId, val)}
+                        title="Klik om locatienaam direct aan te passen"
+                      />
+                    </span>
+                  </div>
+                ) : (
+                  <div className="absolute -bottom-7 flex flex-col items-center z-30 opacity-0 group-hover/node:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      onClick={() => handleUpdateLocationName(group.locId, t.singleLocation || 'Locatie')}
+                      className="text-[10px] font-semibold text-blue-600 bg-white/95 hover:bg-blue-50 border border-dashed border-blue-300 hover:border-blue-500 rounded-full px-2.5 py-0.5 shadow-xs cursor-pointer select-none whitespace-nowrap flex items-center gap-1"
+                      title="Klik om een locatienaam toe te voegen aan deze locatie"
+                    >
+                      <Plus className="w-2.5 h-2.5" />
+                      <span>{t.addLocationName || 'Locatienaam'}</span>
+                    </button>
+                  </div>
+                )}
               </div>
 
               {/* Customer LAN Wolken per subnet cluster in deze locatie (grenst direct aan de CPE's) */}
@@ -1946,10 +1961,12 @@ export function NetworkDiagram({
                       <div className="absolute -top-7 left-1/2 -translate-x-1/2 flex items-center justify-center gap-1.5 whitespace-nowrap z-30">
                         <span className="text-xs font-bold text-slate-800 bg-white border border-slate-300 px-2.5 py-0.5 rounded-full shadow-sm hover:border-blue-400">
                           <InlineEdit 
-                            value={cpe.hostname || 'Mediant'} 
-                            placeholder="Hostname" 
-                            onSave={(val) => handleUpdateCpeField(cpe.id, 'hostname', val)}
+                            value={(cpe.hostname || 'Mediant').toUpperCase()} 
+                            placeholder="HOSTNAME" 
+                            onSave={(val) => handleUpdateCpeField(cpe.id, 'hostname', val.toUpperCase())}
                             title="Klik om Mediant naam direct aan te passen"
+                            className="uppercase"
+                            inputClassName="uppercase"
                           />
                         </span>
                         <span className="text-[10px] font-black text-white bg-blue-600 px-2 py-0.5 rounded-sm shadow-sm hover:bg-blue-700">
@@ -2084,9 +2101,10 @@ export function NetworkDiagram({
                     </div>
                   )}
                   
-                  {/* SIP Endpoints (Lokaal - sluiten naadloos aan op onderzijde van de Customer LAN wolk) */}
+                  {/* SIP PBX (Lokaal - sluiten naadloos aan op onderzijde van de Customer LAN wolk) */}
                   {cpe.mappedLocalPbxs.map((pbx: any) => {
-                    const endpointTitle = cpe.serviceType ? `SIP Endpoint ${cpe.serviceType}` : 'SIP Endpoint';
+                    const defaultTitle = cpe.serviceType ? `SIP PBX ${cpe.serviceType}` : 'SIP PBX';
+                    const titleToUse = pbx.name && !pbx.name.startsWith('SIP Endpoint') ? pbx.name : defaultTitle;
                     return (
                       <div 
                         key={pbx.id} 
@@ -2098,10 +2116,10 @@ export function NetworkDiagram({
                          <PbxIcon width={48} height={48} isRouted={false} />
                          <div className="text-blue-800 text-[10px] font-bold whitespace-nowrap mt-1 flex items-center">
                            <InlineEdit 
-                             value={pbx.name || endpointTitle} 
-                             placeholder="Endpoint" 
+                             value={titleToUse} 
+                             placeholder="SIP PBX" 
                              onSave={(val) => handleUpdatePbxField(cpe.id, pbx.id, 'name', val)} 
-                             title="Klik om naam van dit endpoint direct aan te passen"
+                             title="Klik om naam van deze SIP PBX direct aan te passen"
                              className="text-blue-800 font-bold text-[10px]"
                            />
                            <button
@@ -2110,7 +2128,7 @@ export function NetworkDiagram({
                                e.stopPropagation();
                                handleDeletePbx(cpe.id, pbx.id);
                              }}
-                             title="Verwijder dit endpoint"
+                             title="Verwijder deze SIP PBX"
                              className="opacity-0 group-hover/pbx:opacity-100 transition-opacity ml-1 text-slate-400 hover:text-red-600 text-[10px]"
                            >
                              ×
@@ -2129,26 +2147,9 @@ export function NetworkDiagram({
                       </div>
                     );
                   })}
-                  {/* Als er geen enkel lokaal endpoint is (bijvoorbeeld omdat het endpoint buiten het LAN over de gateway routeert),
-                      verdwijnt het default niet-ingevulde endpoint en verschijnt een discrete toevoegknop */}
-                  {cpe.mappedLocalPbxs.length === 0 && (
-                    <div 
-                      className="absolute flex flex-col items-center z-20 pointer-events-auto" 
-                      style={{ top: cpe.dummyLocalY, left: cpe.dummyLocalX, transform: 'translateX(-50%)' }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => handleAddPbx(cpe.id)}
-                        title="Klik om een nieuw SIP Endpoint toe te voegen"
-                        className="text-xs font-semibold text-blue-700 bg-white hover:bg-blue-50 border border-dashed border-blue-300 hover:border-blue-500 rounded-full px-3 py-1 shadow-xs transition-all flex items-center gap-1.5 cursor-pointer select-none"
-                      >
-                        <span className="text-base font-bold leading-none text-blue-600">+</span>
-                        <span>{t.addEndpoint || 'Endpoint toevoegen'}</span>
-                      </button>
-                    </div>
-                  )}
                   {cpe.mappedRoutedPbxs.map((pbx: any) => {
-                    const routedTitle = cpe.serviceType ? `Routed SIP Endpoint ${cpe.serviceType}` : 'Routed SIP Endpoint';
+                    const defaultRoutedTitle = cpe.serviceType ? `Routed SIP PBX ${cpe.serviceType}` : 'Routed SIP PBX';
+                    const routedTitleToUse = pbx.name && !pbx.name.startsWith('SIP Endpoint') && !pbx.name.startsWith('Routed SIP Endpoint') ? pbx.name : defaultRoutedTitle;
                     return (
                       <div 
                         key={`routed-${pbx.id}`} 
@@ -2160,10 +2161,10 @@ export function NetworkDiagram({
                          <PbxIcon width={48} height={48} isRouted={true} />
                          <div className="text-amber-700 text-[10px] font-bold whitespace-nowrap mt-1 flex items-center">
                            <InlineEdit 
-                             value={pbx.name || routedTitle} 
-                             placeholder="Routed Endpoint" 
+                             value={routedTitleToUse} 
+                             placeholder="Routed SIP PBX" 
                              onSave={(val) => handleUpdatePbxField(cpe.id, pbx.id, 'name', val)} 
-                             title="Klik om naam van dit gerouteerde endpoint aan te passen"
+                             title="Klik om naam van deze gerouteerde SIP PBX aan te passen"
                              className="text-amber-700 font-bold text-[10px]"
                            />
                            <button
@@ -2172,7 +2173,7 @@ export function NetworkDiagram({
                                e.stopPropagation();
                                handleDeletePbx(cpe.id, pbx.id);
                              }}
-                             title="Verwijder dit endpoint"
+                             title="Verwijder deze SIP PBX"
                              className="opacity-0 group-hover/routedpbx:opacity-100 transition-opacity ml-1 text-slate-400 hover:text-red-600 text-[10px]"
                            >
                              ×

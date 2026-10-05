@@ -1,6 +1,8 @@
 export interface PBX {
   id: string;
   ip: string;
+  name?: string;
+  brand?: string;
 }
 
 export type ServiceType = 'VOV' | 'CN' | 'VOV + CN' | '';

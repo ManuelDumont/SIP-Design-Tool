@@ -10,11 +10,12 @@ interface Props {
   allLocations?: LocationConfig[];
   onChange: (location: LocationConfig) => void;
   onDeleteLocation?: (id: string) => void;
+  onAddLocation?: () => void;
   darkMode?: boolean;
   language?: Language;
 }
 
-export function LocationForm({ location, allLocations = [], onChange, onDeleteLocation, darkMode = false, language = 'nl' }: Props) {
+export function LocationForm({ location, allLocations = [], onChange, onDeleteLocation, onAddLocation, darkMode = false, language = 'nl' }: Props) {
   const t = translations[language];
   const [expandedCpeId, setExpandedCpeId] = useState<string | null>(location.cpes[0]?.id || null);
 
@@ -49,8 +50,9 @@ export function LocationForm({ location, allLocations = [], onChange, onDeleteLo
   };
 
   const updateCpe = (cpeId: string, field: keyof CPEConfig, value: any) => {
+    const finalValue = (field === 'hostname' && typeof value === 'string') ? value.toUpperCase() : value;
     const updatedCpes = location.cpes.map(cpe => 
-      cpe.id === cpeId ? { ...cpe, [field]: value } : cpe
+      cpe.id === cpeId ? { ...cpe, [field]: finalValue } : cpe
     );
     onChange({ ...location, cpes: updatedCpes });
   };
@@ -166,6 +168,9 @@ export function LocationForm({ location, allLocations = [], onChange, onDeleteLo
           value={location.locationName || ''}
           onChange={(e) => handleLocationNameChange(e.target.value)}
         />
+        <p className={`text-[10px] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+          {t.locationOptionalFormHelp}
+        </p>
       </div>
 
       {/* Demarcatielijn Toggle Knop */}
@@ -206,7 +211,7 @@ export function LocationForm({ location, allLocations = [], onChange, onDeleteLo
             <AlertTriangle className="w-4 h-4 text-amber-500 mt-0.5 mr-2 shrink-0" />
             <div>
               <h3 className={`text-xs font-bold ${darkMode ? 'text-amber-300' : 'text-amber-800'}`}>
-                {language === 'nl' ? 'Waarschuwing(en)' : language === 'fr' ? 'Avertissement(s)' : 'Warning(s)'}
+                {t.warningsLabel}
               </h3>
               <ul className={`mt-1 text-[11px] list-disc list-inside space-y-0.5 ${darkMode ? 'text-amber-200/90' : 'text-amber-700'}`}>
                 {warnings.map((w, i) => <li key={i}>{w}</li>)}
@@ -282,10 +287,10 @@ export function LocationForm({ location, allLocations = [], onChange, onDeleteLo
                       <label className={labelClass}>{t.hostname}</label>
                       <input 
                         type="text" 
-                        className={inputClass}
-                        placeholder="Bijv. Mediant-01"
+                        className={`${inputClass} uppercase`}
+                        placeholder="Bijv. MEDIANT-01"
                         value={cpe.hostname || ''}
-                        onChange={(e) => updateCpe(cpe.id, 'hostname', e.target.value)}
+                        onChange={(e) => updateCpe(cpe.id, 'hostname', e.target.value.toUpperCase())}
                       />
                     </div>
 
@@ -465,7 +470,7 @@ export function LocationForm({ location, allLocations = [], onChange, onDeleteLo
                     
                     <div className="space-y-1.5">
                       {cpe.pbxs.length === 0 && (
-                        <p className="text-[11px] text-slate-400 italic py-1">Geen endpoints geconfigureerd</p>
+                        <p className="text-[11px] text-slate-400 italic py-1">Geen SIP PBX geconfigureerd</p>
                       )}
                       {cpe.pbxs.map((pbx, index) => (
                         <div key={pbx.id} className="flex gap-1.5 items-center">
@@ -478,7 +483,7 @@ export function LocationForm({ location, allLocations = [], onChange, onDeleteLo
                           />
                           <button 
                             onClick={() => removePbx(cpe.id, pbx.id)}
-                            title="Endpoint verwijderen"
+                            title="SIP PBX verwijderen"
                             className={`p-1 rounded transition-colors ${
                               darkMode ? 'text-slate-500 hover:text-red-400 hover:bg-slate-800' : 'text-slate-400 hover:text-red-500'
                             }`}
@@ -495,6 +500,25 @@ export function LocationForm({ location, allLocations = [], onChange, onDeleteLo
           })}
         </div>
       </div>
+
+      {onAddLocation && (
+        <div className="pt-2 pb-4">
+          <button
+            type="button"
+            onClick={onAddLocation}
+            className={`w-full py-2.5 px-3 rounded-lg border-2 border-dashed flex items-center justify-center gap-2 text-xs font-bold transition-all cursor-pointer ${
+              darkMode 
+                ? 'border-slate-700 text-slate-300 hover:border-blue-500 hover:text-blue-400 hover:bg-blue-500/10' 
+                : 'border-slate-300 text-slate-700 hover:border-blue-500 hover:text-blue-600 hover:bg-blue-50/50'
+            }`}
+          >
+            <Plus className="w-4 h-4 text-blue-500" />
+            <span>
+              {allLocations.length === 1 ? t.addSecondLocationFull : t.addExtraLocationFull}
+            </span>
+          </button>
+        </div>
+      )}
     </div>
   );
 }

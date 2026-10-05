@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, MousePointer, Move, ZoomIn, Hash, Server, Download, ShieldCheck, BookOpen, Edit3, Maximize2, Network, FolderOpen } from 'lucide-react';
+import { X, MousePointer, Move, ZoomIn, Hash, Server, Download, ShieldCheck, BookOpen, Edit3, Maximize2, Network, FolderOpen, MapPin, Phone, Settings } from 'lucide-react';
 import { Language, translations } from '../i18n/translations';
 
 interface Props {
@@ -52,6 +52,26 @@ export function UserGuideModal({ isOpen, onClose, language, darkMode = false }: 
           </p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Bestand & Instellingen Menu */}
+            <div className={`p-4 rounded-xl border transition-all ${
+              darkMode ? 'bg-slate-800/60 border-slate-700/80 hover:border-blue-500/50' : 'bg-blue-50/50 border-blue-100 hover:border-blue-300'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-1.5 rounded-lg bg-blue-600 text-white">
+                  <Settings className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-sm text-blue-800 dark:text-blue-300">
+                  {t.guideMenusTitle}
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                {t.guideMenusDesc}
+              </p>
+              <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-blue-800 dark:text-blue-400 bg-blue-100/60 dark:bg-blue-900/40 px-2 py-1 rounded-md">
+                <span>📁 Bestand &amp; ⚙️ Instellingen</span>
+              </div>
+            </div>
+
             {/* Direct bewerken in het ontwerp */}
             <div className={`p-4 rounded-xl border transition-all ${
               darkMode ? 'bg-slate-800/60 border-slate-700/80 hover:border-amber-500/50' : 'bg-amber-50/50 border-amber-100 hover:border-amber-300'
@@ -89,6 +109,46 @@ export function UserGuideModal({ isOpen, onClose, language, darkMode = false }: 
               </p>
               <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-cyan-800 dark:text-cyan-400 bg-cyan-100/60 dark:bg-cyan-900/40 px-2 py-1 rounded-md">
                 <span>Hoekhandvat ⤡ slepen | Dubbelklik = 100%</span>
+              </div>
+            </div>
+
+            {/* Locaties & Optionele Naamgeving */}
+            <div className={`p-4 rounded-xl border transition-all ${
+              darkMode ? 'bg-slate-800/60 border-slate-700/80 hover:border-emerald-500/50' : 'bg-emerald-50/50 border-emerald-100 hover:border-emerald-300'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-1.5 rounded-lg bg-emerald-600 text-white">
+                  <MapPin className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-sm text-emerald-800 dark:text-emerald-300">
+                  {t.guideLocationsTitle}
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                {t.guideLocationsDesc}
+              </p>
+              <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 dark:text-emerald-400 bg-emerald-100/60 dark:bg-emerald-900/40 px-2 py-1 rounded-md">
+                <span>Geen naam = Schoon design | Hover router = + Locatienaam</span>
+              </div>
+            </div>
+
+            {/* SIP PBX & Hoofdletter Hostnamen */}
+            <div className={`p-4 rounded-xl border transition-all ${
+              darkMode ? 'bg-slate-800/60 border-slate-700/80 hover:border-indigo-500/50' : 'bg-indigo-50/50 border-indigo-100 hover:border-indigo-300'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-1.5 rounded-lg bg-indigo-600 text-white">
+                  <Server className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-sm text-indigo-800 dark:text-indigo-300">
+                  {t.guidePbxTitle}
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                {t.guidePbxDesc}
+              </p>
+              <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-indigo-800 dark:text-indigo-400 bg-indigo-100/60 dark:bg-indigo-900/40 px-2 py-1 rounded-md">
+                <span>SIP PBX | Routed SIP PBX | MEDIANT-01</span>
               </div>
             </div>
 

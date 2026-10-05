@@ -12,7 +12,7 @@ import { UserGuideModal } from './components/UserGuideModal';
 import { Language, translations } from './i18n/translations';
 import { getNextMediantHostname } from './utils/ip';
 import { v4 as uuidv4 } from 'uuid';
-import { Sun, Moon, Plus, Building2, MapPin, ArrowRight, FileText, Trash2, Edit2, FolderOpen, Download, Hash, BookOpen, Save, ChevronDown } from 'lucide-react';
+import { Sun, Moon, Plus, Building2, MapPin, ArrowRight, FileText, Trash2, Edit2, FolderOpen, Download, Hash, BookOpen, Save, ChevronDown, Folder, Settings, Check } from 'lucide-react';
 
 const createBlankLocation = (custName: string, locName: string, currentLocations: LocationConfig[] = []): LocationConfig => {
   const nextHostname = getNextMediantHostname(currentLocations);
@@ -80,24 +80,29 @@ export default function App() {
 
   const [isGuideOpen, setIsGuideOpen] = useState<boolean>(false);
   const [isFileMenuOpen, setIsFileMenuOpen] = useState<boolean>(false);
+  const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState<boolean>(false);
   const fileMenuRef = useRef<HTMLDivElement>(null);
+  const settingsMenuRef = useRef<HTMLDivElement>(null);
   const exportPngRef = useRef<(() => void) | null>(null);
   const t = translations[language];
 
-  // Sluit het Bestand-menu als er buiten geklikt wordt
+  // Sluit het Bestand-menu en Instellingen-menu als er buiten geklikt wordt
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (fileMenuRef.current && !fileMenuRef.current.contains(e.target as Node)) {
         setIsFileMenuOpen(false);
       }
+      if (settingsMenuRef.current && !settingsMenuRef.current.contains(e.target as Node)) {
+        setIsSettingsMenuOpen(false);
+      }
     };
-    if (isFileMenuOpen) {
+    if (isFileMenuOpen || isSettingsMenuOpen) {
       document.addEventListener('mousedown', handleClickOutside);
     }
     return () => {
       document.removeEventListener('mousedown', handleClickOutside);
     };
-  }, [isFileMenuOpen]);
+  }, [isFileMenuOpen, isSettingsMenuOpen]);
 
   // Klantnaam en Projectnummer (standaard leeg)
   const [customerName, setCustomerName] = useState<string>('');
@@ -165,15 +170,20 @@ export default function App() {
     setLocations(prev => prev.map(loc => ({ ...loc, customerName: trimmedCust })));
   };
 
-  // Locatie toevoegen bij Enter of knop
-  const handleAddLocation = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    const locName = inputLocation.trim() || `Locatie ${locations.length + 1}`;
-    const newLoc = createBlankLocation(customerName, locName, locations);
+  // Direct een nieuwe locatie toevoegen
+  const handleAddNewLocationDirect = (name: string = '') => {
+    const newLoc = createBlankLocation(customerName, name, locations);
     setLocations([...locations, newLoc]);
     setActiveLocationId(newLoc.id);
-    setInputLocation('');
     setShowAddLocationInput(false);
+  };
+
+  // Locatie toevoegen bij Enter of knop vanuit het formulier
+  const handleAddLocation = (e?: React.FormEvent, customLocName?: string) => {
+    if (e) e.preventDefault();
+    const locName = (customLocName !== undefined ? customLocName : inputLocation).trim();
+    handleAddNewLocationDirect(locName);
+    setInputLocation('');
   };
 
   // Locatie verwijderen
@@ -379,35 +389,36 @@ export default function App() {
         <nav className={`flex items-center justify-between px-6 py-3 border-b shadow-sm shrink-0 transition-colors duration-200 ${
           darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
         }`}>
-          <div className="flex items-center gap-4">
-            <div className="flex items-center gap-3">
-              <div className="bg-[#E60000] p-2 rounded-lg text-white shadow-sm">
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 002-2h-2a2 2 0 002 2"></path></svg>
-              </div>
-              <h1 className={`text-base font-bold leading-tight ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
-                SIP Design Maker
-              </h1>
+          <div className="flex items-center gap-3">
+            <div className="bg-[#E60000] p-2 rounded-lg text-white shadow-sm">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 002-2h-2a2 2 0 002 2"></path></svg>
             </div>
+            <h1 className={`text-base font-bold leading-tight ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+              SIP Design Maker
+            </h1>
+          </div>
 
+          <div className="flex items-center gap-2">
             {/* Pulldown menu genaamd Bestand */}
             <div className="relative" ref={fileMenuRef}>
               <button
                 onClick={() => setIsFileMenuOpen(!isFileMenuOpen)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
                   isFileMenuOpen 
                     ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
                     : darkMode 
-                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700' 
-                      : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-sm'
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 shadow-sm' 
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
                 }`}
                 title={t.fileMenu || "Bestand"}
               >
+                <Folder className={`w-3.5 h-3.5 ${isFileMenuOpen ? 'text-white' : 'text-blue-500'}`} />
                 <span>{t.fileMenu || 'Bestand'}</span>
-                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isFileMenuOpen ? 'rotate-180' : ''}`} />
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isFileMenuOpen ? 'rotate-180 text-white' : 'text-slate-400'}`} />
               </button>
 
               {isFileMenuOpen && (
-                <div className={`absolute left-0 mt-1.5 w-60 rounded-xl shadow-xl border py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 ${
+                <div className={`absolute right-0 mt-1.5 w-60 rounded-xl shadow-xl border py-1.5 z-50 animate-in fade-in zoom-in-95 duration-100 ${
                   darkMode ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
                 }`}>
                   {/* Nieuw leeg ontwerp */}
@@ -416,7 +427,7 @@ export default function App() {
                       setIsFileMenuOpen(false);
                       handleResetToBlank();
                     }}
-                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-left transition-colors ${
+                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-left transition-colors cursor-pointer ${
                       darkMode ? 'hover:bg-slate-800 hover:text-white' : 'hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
@@ -430,7 +441,7 @@ export default function App() {
                       setIsFileMenuOpen(false);
                       fileInputRef.current?.click();
                     }}
-                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-left transition-colors ${
+                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-left transition-colors cursor-pointer ${
                       darkMode ? 'hover:bg-slate-800 hover:text-white' : 'hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
@@ -446,7 +457,7 @@ export default function App() {
                       setIsFileMenuOpen(false);
                       handleExportJSON();
                     }}
-                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-left transition-colors ${
+                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-left transition-colors cursor-pointer ${
                       darkMode ? 'hover:bg-slate-800 hover:text-white' : 'hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
@@ -462,7 +473,7 @@ export default function App() {
                         exportPngRef.current();
                       }
                     }}
-                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-left transition-colors ${
+                    className={`w-full flex items-center gap-2.5 px-3.5 py-2 text-xs font-medium text-left transition-colors cursor-pointer ${
                       darkMode ? 'hover:bg-slate-800 hover:text-white' : 'hover:bg-slate-50 hover:text-slate-900'
                     }`}
                   >
@@ -472,75 +483,151 @@ export default function App() {
                 </div>
               )}
             </div>
-          </div>
 
-          <div className="flex items-center gap-2">
+            {/* Instellingen pull down menu (Gebruiksaanwijzing, Thema's, Taal instellingen) */}
+            <div className="relative" ref={settingsMenuRef}>
+              <button
+                onClick={() => setIsSettingsMenuOpen(!isSettingsMenuOpen)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all cursor-pointer ${
+                  isSettingsMenuOpen 
+                    ? 'bg-blue-600 text-white border-blue-600 shadow-sm' 
+                    : darkMode 
+                      ? 'bg-slate-800 hover:bg-slate-700 text-slate-200 border-slate-700 shadow-sm' 
+                      : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
+                }`}
+                title={t.settingsMenu || "Instellingen"}
+              >
+                <Settings className={`w-3.5 h-3.5 ${isSettingsMenuOpen ? 'text-white' : 'text-blue-500'}`} />
+                <span>{t.settingsMenu || 'Instellingen'}</span>
+                <ChevronDown className={`w-3.5 h-3.5 transition-transform duration-200 ${isSettingsMenuOpen ? 'rotate-180 text-white' : 'text-slate-400'}`} />
+              </button>
 
-            {/* Handleiding / User Guide Modal knop */}
-            <button
-              onClick={() => setIsGuideOpen(true)}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                darkMode 
-                  ? 'bg-slate-800 hover:bg-slate-700 text-blue-400 border-slate-700 shadow-sm' 
-                  : 'bg-blue-50/80 hover:bg-blue-100 text-blue-700 border-blue-200 shadow-sm'
-              }`}
-              title={t.userGuide || "Handleiding / Gebruiksaanwijzing"}
-            >
-              <BookOpen className="w-3.5 h-3.5" />
-              <span>{t.userGuide || 'Handleiding'}</span>
-            </button>
+              {isSettingsMenuOpen && (
+                <div className={`absolute right-0 mt-1.5 w-64 rounded-xl shadow-xl border p-2 z-50 animate-in fade-in zoom-in-95 duration-100 ${
+                  darkMode ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
+                }`}>
+                  {/* Gebruiksaanwijzing */}
+                  <div className="mb-2">
+                    <button
+                      onClick={() => {
+                        setIsSettingsMenuOpen(false);
+                        setIsGuideOpen(true);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        darkMode 
+                          ? 'bg-slate-800 hover:bg-slate-700 text-slate-100 border border-slate-700' 
+                          : 'bg-blue-50/70 hover:bg-blue-100 text-blue-900 border border-blue-100'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <BookOpen className="w-4 h-4 text-blue-500" />
+                        <span>{t.userGuide || 'Gebruiksaanwijzing'}</span>
+                      </div>
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                    </button>
+                  </div>
 
-            {/* Taalinstellingen (NL / EN / FR) */}
-            <div className={`flex items-center rounded-lg border p-0.5 text-xs font-bold ${
-              darkMode ? 'bg-slate-800 border-slate-700 text-slate-300' : 'bg-slate-100 border-slate-200 text-slate-600'
-            }`}>
-              <button
-                onClick={() => setLanguage('nl')}
-                className={`px-2 py-1 rounded transition-all ${
-                  language === 'nl'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'hover:text-blue-600'
-                }`}
-                title="Nederlands"
-              >
-                NL
-              </button>
-              <button
-                onClick={() => setLanguage('en')}
-                className={`px-2 py-1 rounded transition-all ${
-                  language === 'en'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'hover:text-blue-600'
-                }`}
-                title="English"
-              >
-                EN
-              </button>
-              <button
-                onClick={() => setLanguage('fr')}
-                className={`px-2 py-1 rounded transition-all ${
-                  language === 'fr'
-                    ? 'bg-blue-600 text-white shadow-xs'
-                    : 'hover:text-blue-600'
-                }`}
-                title="Français"
-              >
-                FR
-              </button>
+                  <div className={`my-2 border-t ${darkMode ? 'border-slate-800' : 'border-slate-100'}`} />
+
+                  {/* Thema's */}
+                  <div className="px-1 py-1">
+                    <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 px-1">
+                      <span>{t.themeTitle || "Thema's"}</span>
+                    </div>
+                    <div className={`grid grid-cols-2 gap-1.5 p-1 rounded-lg border ${
+                      darkMode ? 'bg-slate-850 border-slate-800' : 'bg-slate-50 border-slate-200'
+                    }`}>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (darkMode) toggleDarkMode();
+                        }}
+                        className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                          !darkMode 
+                            ? 'bg-white text-blue-700 shadow-xs font-bold border border-slate-200' 
+                            : 'text-slate-400 hover:text-slate-200'
+                        }`}
+                      >
+                        <Sun className={`w-3.5 h-3.5 ${!darkMode ? 'text-amber-500' : 'text-slate-400'}`} />
+                        <span>{t.themeLight || 'Licht'}</span>
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => {
+                          if (!darkMode) toggleDarkMode();
+                        }}
+                        className={`flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-semibold transition-all cursor-pointer ${
+                          darkMode 
+                            ? 'bg-blue-600 text-white shadow-xs font-bold' 
+                            : 'text-slate-600 hover:text-slate-900'
+                        }`}
+                      >
+                        <Moon className={`w-3.5 h-3.5 ${darkMode ? 'text-amber-300' : 'text-slate-500'}`} />
+                        <span>{t.themeDark || 'Donker'}</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className={`my-2 border-t ${darkMode ? 'border-slate-800' : 'border-slate-100'}`} />
+
+                  {/* Taal instellingen */}
+                  <div className="px-1 py-1">
+                    <div className="flex items-center justify-between text-[11px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 px-1">
+                      <span>{t.languageTitle || "Taal instellingen"}</span>
+                    </div>
+                    <div className="space-y-1">
+                      <button
+                        type="button"
+                        onClick={() => setLanguage('nl')}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                          language === 'nl'
+                            ? (darkMode ? 'bg-blue-600/30 text-blue-300 border border-blue-500/50' : 'bg-blue-50 text-blue-700 border border-blue-200')
+                            : (darkMode ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-700')
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">🇳🇱</span>
+                          <span>Nederlands (NL)</span>
+                        </div>
+                        {language === 'nl' && <Check className="w-3.5 h-3.5 text-blue-500" />}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setLanguage('en')}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                          language === 'en'
+                            ? (darkMode ? 'bg-blue-600/30 text-blue-300 border border-blue-500/50' : 'bg-blue-50 text-blue-700 border border-blue-200')
+                            : (darkMode ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-700')
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">🇬🇧</span>
+                          <span>English (EN)</span>
+                        </div>
+                        {language === 'en' && <Check className="w-3.5 h-3.5 text-blue-500" />}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setLanguage('fr')}
+                        className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                          language === 'fr'
+                            ? (darkMode ? 'bg-blue-600/30 text-blue-300 border border-blue-500/50' : 'bg-blue-50 text-blue-700 border border-blue-200')
+                            : (darkMode ? 'hover:bg-slate-800 text-slate-300' : 'hover:bg-slate-100 text-slate-700')
+                        }`}
+                      >
+                        <div className="flex items-center gap-2">
+                          <span className="text-sm">🇫🇷</span>
+                          <span>Français (FR)</span>
+                        </div>
+                        {language === 'fr' && <Check className="w-3.5 h-3.5 text-blue-500" />}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
-
-            <button
-              onClick={toggleDarkMode}
-              className={`flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs font-semibold border transition-all ${
-                darkMode 
-                  ? 'bg-slate-800 hover:bg-slate-700 text-amber-300 border-slate-700 shadow-sm' 
-                  : 'bg-slate-100 hover:bg-slate-200 text-slate-700 border-slate-200'
-              }`}
-              title={darkMode ? t.lightModeTooltip : t.darkModeTooltip}
-            >
-              {darkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-600" />}
-              <span>{darkMode ? t.themeLight : t.themeDark}</span>
-            </button>
           </div>
         </nav>
 
@@ -782,7 +869,14 @@ export default function App() {
 
                 <div className="flex items-center gap-2 mb-3">
                   <MapPin className={`w-5 h-5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
-                  <h2 className={`text-sm font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>{t.addLocation}</h2>
+                  <div>
+                    <h2 className={`text-sm font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+                      {t.addLocationOptional}
+                    </h2>
+                    <p className={`text-[11px] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      {t.locationOptionalHelp}
+                    </p>
+                  </div>
                 </div>
 
                 <form onSubmit={handleAddLocation} className="space-y-3">
@@ -790,7 +884,7 @@ export default function App() {
                     <input 
                       type="text"
                       autoFocus
-                      placeholder={t.locationPlaceholder}
+                      placeholder={t.locationNameOptionalPlaceholder}
                       className={`w-full border rounded-lg px-3.5 py-2.5 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors ${
                         darkMode 
                           ? 'bg-slate-800 border-slate-700 text-slate-100 placeholder-slate-500' 
@@ -806,14 +900,35 @@ export default function App() {
                       }}
                     />
                   </div>
-                  <button 
-                    type="submit"
-                    disabled={!inputLocation.trim()}
-                    className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white font-semibold py-2.5 px-3 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>{t.addLocation}</span>
-                  </button>
+                  <div className="space-y-2">
+                    <button 
+                      type="submit"
+                      className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-3 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
+                    >
+                      {inputLocation.trim() ? (
+                        <>
+                          <Plus className="w-3.5 h-3.5" />
+                          <span>{t.addLocation}</span>
+                        </>
+                      ) : (
+                        <>
+                          <ArrowRight className="w-3.5 h-3.5" />
+                          <span>{t.configureFirstCpe}</span>
+                        </>
+                      )}
+                    </button>
+                    {inputLocation.trim() && (
+                      <button
+                        type="button"
+                        onClick={() => handleAddLocation(undefined, '')}
+                        className={`w-full text-center text-[11px] font-medium py-1 hover:underline cursor-pointer ${
+                          darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-800'
+                        }`}
+                      >
+                        {t.continueWithoutLocation}
+                      </button>
+                    )}
+                  </div>
                 </form>
               </div>
             ) : (
@@ -852,88 +967,46 @@ export default function App() {
                   </button>
                 </div>
 
-                {/* Locaties balk (Tabs + Toevoegen knop) */}
+                {/* Locaties balk (Tabs + Direct toevoegen knop) */}
                 <div className={`px-4 py-2 border-b flex items-center justify-between gap-2 shrink-0 ${
                   darkMode ? 'bg-slate-850 border-slate-800' : 'bg-white border-slate-200'
                 }`}>
-                  <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 max-w-[270px]">
+                  <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 flex-1 min-w-0">
                     <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">
                       {t.locations}:
                     </span>
-                    {locations.map(loc => (
+                    {locations.map((loc, idx) => (
                       <button
                         key={loc.id}
                         onClick={() => setActiveLocationId(loc.id)}
-                        className={`px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap transition-all ${
+                        className={`px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
                           activeLocationId === loc.id
-                            ? darkMode
-                              ? 'bg-blue-600 text-white shadow-sm'
-                              : 'bg-blue-600 text-white shadow-sm'
+                            ? 'bg-blue-600 text-white shadow-sm'
                             : darkMode
                               ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
                               : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
                         }`}
                       >
-                        {loc.locationName || 'Naamloos'}
+                        {loc.locationName?.trim() || `${t.singleLocation} ${idx + 1}`}
                       </button>
                     ))}
                   </div>
 
                   <button
-                    onClick={() => setShowAddLocationInput(prev => !prev)}
-                    className={`text-[11px] font-bold flex items-center gap-1 px-2 py-1 rounded transition-colors shrink-0 ${
-                      darkMode ? 'bg-slate-800 text-blue-400 hover:bg-slate-700' : 'bg-blue-50 text-blue-600 hover:bg-blue-100'
+                    onClick={() => handleAddNewLocationDirect()}
+                    className={`text-[11px] font-bold flex items-center gap-1 px-2.5 py-1 rounded-md transition-all shrink-0 cursor-pointer shadow-xs ${
+                      darkMode 
+                        ? 'bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-500/40' 
+                        : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 hover:border-blue-300'
                     }`}
-                    title={t.addLocation}
+                    title={locations.length === 1 ? t.addSecondLocationFull : t.addExtraLocationFull}
                   >
-                    <Plus className="w-3.5 h-3.5" /> {t.addLocation}
+                    <Plus className="w-3.5 h-3.5 text-blue-500" />
+                    <span>
+                      {locations.length === 1 ? t.addSecondLocation : `+ ${t.singleLocation}`}
+                    </span>
                   </button>
                 </div>
-
-                {/* Snelle popdown voor extra locatie toevoegen */}
-                {showAddLocationInput && (
-                  <div className={`px-4 py-3 border-b animate-in fade-in duration-150 ${
-                    darkMode ? 'bg-slate-800 border-slate-700' : 'bg-blue-50/70 border-blue-200'
-                  }`}>
-                    <form onSubmit={handleAddLocation} className="flex gap-2">
-                      <input
-                        type="text"
-                        autoFocus
-                        placeholder={t.locationPlaceholder}
-                        className={`flex-1 border rounded px-2.5 py-1 text-xs font-semibold focus:ring-1 focus:ring-blue-500 ${
-                          darkMode ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300 text-slate-800'
-                        }`}
-                        value={inputLocation}
-                        onChange={(e) => setInputLocation(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter') {
-                            e.preventDefault();
-                            handleAddLocation();
-                          }
-                          if (e.key === 'Escape') {
-                            setShowAddLocationInput(false);
-                          }
-                        }}
-                      />
-                      <button
-                        type="submit"
-                        disabled={!inputLocation.trim()}
-                        className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-3 py-1 rounded text-xs font-semibold"
-                      >
-                        {t.confirm}
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setShowAddLocationInput(false)}
-                        className={`px-2 py-1 rounded text-xs ${
-                          darkMode ? 'text-slate-400 hover:bg-slate-700' : 'text-slate-500 hover:bg-slate-200'
-                        }`}
-                      >
-                        {t.cancel}
-                      </button>
-                    </form>
-                  </div>
-                )}
 
                 {/* Formulier voor de actieve locatie */}
                 <div className="flex-1 overflow-y-auto">
@@ -943,6 +1016,7 @@ export default function App() {
                       allLocations={locations}
                       onChange={updateActiveLocation}
                       onDeleteLocation={handleDeleteLocation}
+                      onAddLocation={() => handleAddNewLocationDirect()}
                       darkMode={darkMode}
                       language={language}
                     />
