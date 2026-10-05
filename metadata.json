@@ -1,0 +1,6 @@
+{
+  "name": "SIP Network Planner",
+  "description": "Plan en exporteer SIP netwerk ontwerpen voor operator-grade diensten.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
