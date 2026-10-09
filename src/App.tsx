@@ -9,10 +9,11 @@ import { LocationForm } from './components/LocationForm';
 import { NetworkDiagram } from './components/NetworkDiagram';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { UserGuideModal } from './components/UserGuideModal';
+import { ServiceBuilderModal } from './components/ServiceBuilderModal';
 import { Language, translations } from './i18n/translations';
 import { getNextMediantHostname } from './utils/ip';
 import { v4 as uuidv4 } from 'uuid';
-import { Sun, Moon, Plus, Building2, MapPin, ArrowRight, FileText, Trash2, Edit2, FolderOpen, Download, Hash, BookOpen, Save, ChevronDown, Folder, Settings, Check } from 'lucide-react';
+import { Sun, Moon, Plus, Building2, MapPin, ArrowRight, FileText, Trash2, Edit2, FolderOpen, Download, Hash, BookOpen, Save, ChevronDown, Folder, Settings, Check, Sliders } from 'lucide-react';
 
 const createBlankLocation = (custName: string, locName: string, currentLocations: LocationConfig[] = []): LocationConfig => {
   const nextHostname = getNextMediantHostname(currentLocations);
@@ -79,6 +80,8 @@ export default function App() {
   }, [language]);
 
   const [isGuideOpen, setIsGuideOpen] = useState<boolean>(false);
+  const [isServiceBuilderOpen, setIsServiceBuilderOpen] = useState<boolean>(false);
+  const [servicesVersion, setServicesVersion] = useState<number>(0);
   const [isFileMenuOpen, setIsFileMenuOpen] = useState<boolean>(false);
   const [isSettingsMenuOpen, setIsSettingsMenuOpen] = useState<boolean>(false);
   const fileMenuRef = useRef<HTMLDivElement>(null);
@@ -507,7 +510,7 @@ export default function App() {
                   darkMode ? 'bg-slate-900 border-slate-700 text-slate-200' : 'bg-white border-slate-200 text-slate-700'
                 }`}>
                   {/* Gebruiksaanwijzing */}
-                  <div className="mb-2">
+                  <div className="mb-1.5">
                     <button
                       onClick={() => {
                         setIsSettingsMenuOpen(false);
@@ -524,6 +527,39 @@ export default function App() {
                         <span>{t.userGuide || 'Gebruiksaanwijzing'}</span>
                       </div>
                       <ArrowRight className="w-3.5 h-3.5 text-slate-400" />
+                    </button>
+                  </div>
+
+                  {/* Diensten Bouwer (Service Builder) */}
+                  <div className="mb-2">
+                    <button
+                      onClick={() => {
+                        setIsSettingsMenuOpen(false);
+                        setIsServiceBuilderOpen(true);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold transition-all cursor-pointer ${
+                        darkMode 
+                          ? 'bg-gradient-to-r from-blue-950/70 to-indigo-950/70 hover:from-blue-900/80 hover:to-indigo-900/80 text-blue-200 border border-blue-800/60 shadow-xs' 
+                          : 'bg-gradient-to-r from-blue-50 to-indigo-50 hover:from-blue-100 hover:to-indigo-100 text-blue-950 border border-blue-200 shadow-xs'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-6 h-6 rounded-md bg-blue-600 text-white flex items-center justify-center shadow-2xs shrink-0">
+                          <Sliders className="w-3.5 h-3.5" />
+                        </div>
+                        <div className="text-left">
+                          <div className="font-bold flex items-center gap-1.5 leading-tight">
+                            <span>{t.serviceBuilder || 'Diensten Bouwer'}</span>
+                            <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-blue-600 text-white leading-none">
+                              Nieuw
+                            </span>
+                          </div>
+                          <div className="text-[10px] text-slate-500 dark:text-slate-400 font-normal leading-tight mt-0.5">
+                            Configs &amp; onderdelen kiezen
+                          </div>
+                        </div>
+                      </div>
+                      <ArrowRight className="w-3.5 h-3.5 text-slate-400 shrink-0" />
                     </button>
                   </div>
 
@@ -934,79 +970,83 @@ export default function App() {
             ) : (
               /* ZODRA ER EEN LOCATIE IS: Klantbalk + Locaties tabs + Active Location Form */
               <div className="flex flex-col h-full overflow-hidden">
-                {/* Klant header compact */}
-                <div className={`px-4 py-2.5 border-b flex items-center justify-between shrink-0 ${
-                  darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'
-                }`}>
-                  <div className="flex items-center gap-2 overflow-hidden pr-2">
-                    <Building2 className={`w-4 h-4 shrink-0 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
-                    <div className="truncate">
-                      <div className="flex items-center gap-1.5 leading-tight">
-                        <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t.customer}</span>
-                        <span className={`text-xs font-bold truncate ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>{customerName}</span>
-                      </div>
-                      {projectNumber ? (
-                        <div className="flex items-center gap-1.5 leading-tight mt-0.5">
-                          <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{t.projectNumber}</span>
-                          <span className={`text-[11px] font-semibold truncate ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{projectNumber}</span>
+                {/* Klant header compact (niet tonen bij Multicustomer omdat formulier zelf direct Klant en Projectnummer bevat) */}
+                {!locations.some(l => l.isMulticustomer || (l.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.isMulticustomer)) && (
+                  <div className={`px-4 py-2.5 border-b flex items-center justify-between shrink-0 ${
+                    darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-2 overflow-hidden pr-2">
+                      <Building2 className={`w-4 h-4 shrink-0 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                      <div className="truncate">
+                        <div className="flex items-center gap-1.5 leading-tight">
+                          <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t.customer}</span>
+                          <span className={`text-xs font-bold truncate ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>{customerName}</span>
                         </div>
-                      ) : null}
+                        {projectNumber ? (
+                          <div className="flex items-center gap-1.5 leading-tight mt-0.5">
+                            <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">{t.projectNumber}</span>
+                            <span className={`text-[11px] font-semibold truncate ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>{projectNumber}</span>
+                          </div>
+                        ) : null}
+                      </div>
                     </div>
+                    <button 
+                      onClick={() => {
+                        setInputCustomer(customerName);
+                        setInputProjectNumber(projectNumber);
+                        setIsEditingCustomer(true);
+                      }} 
+                      className={`text-[11px] font-semibold hover:underline shrink-0 ${
+                        darkMode ? 'text-blue-400' : 'text-blue-600'
+                      }`}
+                    >
+                      {t.edit}
+                    </button>
                   </div>
-                  <button 
-                    onClick={() => {
-                      setInputCustomer(customerName);
-                      setInputProjectNumber(projectNumber);
-                      setIsEditingCustomer(true);
-                    }} 
-                    className={`text-[11px] font-semibold hover:underline shrink-0 ${
-                      darkMode ? 'text-blue-400' : 'text-blue-600'
-                    }`}
-                  >
-                    {t.edit}
-                  </button>
-                </div>
+                )}
 
-                {/* Locaties balk (Tabs + Direct toevoegen knop) */}
-                <div className={`px-4 py-2 border-b flex items-center justify-between gap-2 shrink-0 ${
-                  darkMode ? 'bg-slate-850 border-slate-800' : 'bg-white border-slate-200'
-                }`}>
-                  <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 flex-1 min-w-0">
-                    <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">
-                      {t.locations}:
-                    </span>
-                    {locations.map((loc, idx) => (
-                      <button
-                        key={loc.id}
-                        onClick={() => setActiveLocationId(loc.id)}
-                        className={`px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                          activeLocationId === loc.id
-                            ? 'bg-blue-600 text-white shadow-sm'
-                            : darkMode
-                              ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                              : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                        }`}
-                      >
-                        {loc.locationName?.trim() || `${t.singleLocation} ${idx + 1}`}
-                      </button>
-                    ))}
+                {/* Locaties balk (Tabs + Direct toevoegen knop - niet tonen bij Multicustomer) */}
+                {!locations.some(l => l.isMulticustomer || (l.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.isMulticustomer)) && (
+                  <div className={`px-4 py-2 border-b flex items-center justify-between gap-2 shrink-0 ${
+                    darkMode ? 'bg-slate-850 border-slate-800' : 'bg-white border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 flex-1 min-w-0">
+                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">
+                        {t.locations}:
+                      </span>
+                      {locations.map((loc, idx) => (
+                        <button
+                          key={loc.id}
+                          onClick={() => setActiveLocationId(loc.id)}
+                          className={`px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
+                            activeLocationId === loc.id
+                              ? 'bg-blue-600 text-white shadow-sm'
+                              : darkMode
+                                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
+                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                          }`}
+                        >
+                          {loc.locationName?.trim() || `${t.singleLocation} ${idx + 1}`}
+                        </button>
+                      ))}
+                    </div>
+
+                    <button
+                      onClick={() => handleAddNewLocationDirect()}
+                      className={`text-[11px] font-bold flex items-center gap-1 px-2.5 py-1 rounded-md transition-all shrink-0 cursor-pointer shadow-xs ${
+                        darkMode 
+                          ? 'bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-500/40' 
+                          : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 hover:border-blue-300'
+                      }`}
+                      title={locations.length === 1 ? t.addSecondLocationFull : t.addExtraLocationFull}
+                    >
+                      <Plus className="w-3.5 h-3.5 text-blue-500" />
+                      <span>
+                        {locations.length === 1 ? t.addSecondLocation : `+ ${t.singleLocation}`}
+                      </span>
+                    </button>
                   </div>
-
-                  <button
-                    onClick={() => handleAddNewLocationDirect()}
-                    className={`text-[11px] font-bold flex items-center gap-1 px-2.5 py-1 rounded-md transition-all shrink-0 cursor-pointer shadow-xs ${
-                      darkMode 
-                        ? 'bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-500/40' 
-                        : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 hover:border-blue-300'
-                    }`}
-                    title={locations.length === 1 ? t.addSecondLocationFull : t.addExtraLocationFull}
-                  >
-                    <Plus className="w-3.5 h-3.5 text-blue-500" />
-                    <span>
-                      {locations.length === 1 ? t.addSecondLocation : `+ ${t.singleLocation}`}
-                    </span>
-                  </button>
-                </div>
+                )}
 
                 {/* Formulier voor de actieve locatie */}
                 <div className="flex-1 overflow-y-auto">
@@ -1019,6 +1059,10 @@ export default function App() {
                       onAddLocation={() => handleAddNewLocationDirect()}
                       darkMode={darkMode}
                       language={language}
+                      customerName={customerName}
+                      projectNumber={projectNumber}
+                      onUpdateCustomerName={setCustomerName}
+                      onUpdateProjectNumber={setProjectNumber}
                     />
                   ) : null}
                 </div>
@@ -1082,6 +1126,16 @@ export default function App() {
           onClose={() => setIsGuideOpen(false)}
           language={language}
           darkMode={darkMode}
+        />
+
+        {/* Diensten Bouwer / Service Builder Modal */}
+        <ServiceBuilderModal 
+          isOpen={isServiceBuilderOpen}
+          onClose={() => setIsServiceBuilderOpen(false)}
+          darkMode={darkMode}
+          onServicesUpdated={() => {
+            setServicesVersion(v => v + 1);
+          }}
         />
       </div>
     </ErrorBoundary>

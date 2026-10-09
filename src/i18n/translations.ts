@@ -46,6 +46,7 @@ export interface Translations {
   noCpesYet: string;
   noCpesDesc: string;
   ipVoiceCore: string;
+  ipVoiceAccessNetwork: string;
   sbcCluster: string;
   customerLan: string;
   demarcationLegend: string;
@@ -126,6 +127,17 @@ export interface Translations {
   addLocationName: string;
   guideMenusTitle: string;
   guideMenusDesc: string;
+  multicustomer: string;
+  multitenantCustomer: string;
+  multicustomerVariant: string;
+  configNr: string;
+  trunkId: string;
+  selectMultitenantCustomer: string;
+  cpeCount: string;
+  serviceBuilder?: string;
+  serviceBuilderDesc?: string;
+  guideMulticustomerTitle: string;
+  guideMulticustomerDesc: string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -174,7 +186,8 @@ export const translations: Record<Language, Translations> = {
     addRoutedEndpoint: 'Routed SIP PBX toevoegen',
     noCpesYet: "Nog geen CPE's geconfigureerd",
     noCpesDesc: 'Voeg via het linkerpaneel een locatie en Mediant (CPE) toe om het netwerkdiagram op te bouwen.',
-    ipVoiceCore: 'IP Voice core',
+    ipVoiceCore: 'IP Voice Access Network',
+    ipVoiceAccessNetwork: 'IP Voice Access Network',
     sbcCluster: 'SBC Cluster',
     customerLan: 'Customer LAN (SIP)',
     demarcationLegend: 'Demarcatielijn (scheiding Operator domein / Klant domein)',
@@ -255,6 +268,17 @@ export const translations: Record<Language, Translations> = {
     addLocationName: 'Locatienaam',
     guideMenusTitle: '📁 Bestand & ⚙️ Instellingen Menu',
     guideMenusDesc: 'Via het Bestand-menu kunt u een nieuw leeg ontwerp starten, bestaande .json ontwerpen openen, uw werk opslaan of direct exporteren naar PNG. In het Instellingen-menu vindt u deze gebruiksaanwijzing, het thema (Licht / Donker) en de taalinstellingen.',
+    multicustomer: 'Multicustomer',
+    multitenantCustomer: 'Multitenant Klant',
+    multicustomerVariant: 'Omgevingstype',
+    configNr: 'Config. Nr.',
+    trunkId: 'Trunk ID',
+    selectMultitenantCustomer: '-- Kies Multitenant Klant --',
+    cpeCount: 'Aantal CPE\'s',
+    serviceBuilder: 'Diensten Bouwer',
+    serviceBuilderDesc: 'Configureer modulaire telecom-diensten en netwerkbouwstenen',
+    guideMulticustomerTitle: '🏢 Multicustomer Omgevingen',
+    guideMulticustomerDesc: 'Kies "Multicustomer" bij Diensttype voor gedeelde telecom-omgevingen (VOV of VOV + CN). Geef aan voor welke klant de omgeving is: Esprit (N2G), IP Voice Group Services BV (UFC), PCC Omnia (1 of 2 CPE’s) of TSG. In het ontwerp verschijnt automatisch het bijbehorende Mediant-tekstblok met instelbaar Config. Nr. of Trunk ID. Voor Esprit wordt de titel "Esprit MultiCustomer: [Klantnaam]" en bevat de architectuur automatisch Mediant 006 & 007, WAN-adressen (10.183.57.xxx & 10.183.58.xxx), LAN (10.20.0.xxx & 10.20.1.xxx in 10.20.0.0/22), een Firewall (met 10.20.2.xxx adres) en een tweede kleinere Customer LAN wolk met de PBX.',
   },
   en: {
     appName: 'SIP Design Maker',
@@ -301,7 +325,8 @@ export const translations: Record<Language, Translations> = {
     addRoutedEndpoint: 'Add routed SIP PBX',
     noCpesYet: 'No CPEs configured yet',
     noCpesDesc: 'Add a location and Mediant (CPE) in the left panel to build the network diagram.',
-    ipVoiceCore: 'IP Voice core',
+    ipVoiceCore: 'IP Voice Access Network',
+    ipVoiceAccessNetwork: 'IP Voice Access Network',
     sbcCluster: 'SBC Cluster',
     customerLan: 'Customer LAN (SIP)',
     demarcationLegend: 'Demarcation line (separation of Operator domain / Customer domain)',
@@ -382,6 +407,17 @@ export const translations: Record<Language, Translations> = {
     addLocationName: 'Location name',
     guideMenusTitle: '📁 File & ⚙️ Settings Menus',
     guideMenusDesc: 'Use the File menu to start a new design, open saved .json designs, save your project, or export high-resolution PNG images. Use the Settings menu to access this User Guide, toggle light/dark themes, and change languages.',
+    multicustomer: 'Multicustomer',
+    multitenantCustomer: 'Multitenant Customer',
+    multicustomerVariant: 'Environment Type',
+    configNr: 'Config. Nr.',
+    trunkId: 'Trunk ID',
+    selectMultitenantCustomer: '-- Select Multitenant Customer --',
+    cpeCount: 'Number of CPEs',
+    serviceBuilder: 'Service Builder',
+    serviceBuilderDesc: 'Configure modular telecom services and network components',
+    guideMulticustomerTitle: '🏢 Multicustomer Environments',
+    guideMulticustomerDesc: 'Select "Multicustomer" under Service Type for multi-tenant environments (VOV or VOV + CN). Specify the client: Esprit (N2G), IP Voice Group Services BV (UFC), PCC Omnia (1 or 2 CPEs), or TSG. The diagram automatically displays the corresponding Multi Customer Mediant block with editable Config. Nr. or Trunk ID. For Esprit, the title becomes "Esprit MultiCustomer: [Customer Name]" and the architecture automatically configures Mediant 006 & 007, WAN IPs (10.183.57.xxx & 10.183.58.xxx), LAN IPs (10.20.0.xxx & 10.20.1.xxx in 10.20.0.0/22), a Firewall (with 10.20.2.xxx IP), and a second smaller Customer LAN cloud with the PBX.',
   },
   fr: {
     appName: 'SIP Design Maker',
@@ -428,7 +464,8 @@ export const translations: Record<Language, Translations> = {
     addRoutedEndpoint: 'Ajouter Routed SIP PBX',
     noCpesYet: 'Aucun CPE configuré pour le moment',
     noCpesDesc: 'Ajoutez un site et un Mediant (CPE) dans le panneau de gauche pour construire le diagramme.',
-    ipVoiceCore: 'IP Voice core',
+    ipVoiceCore: 'IP Voice Access Network',
+    ipVoiceAccessNetwork: 'IP Voice Access Network',
     sbcCluster: 'Cluster SBC',
     customerLan: 'Customer LAN (SIP)',
     demarcationLegend: 'Ligne de démarcation (séparation domaine opérateur / domaine client)',
@@ -509,5 +546,16 @@ export const translations: Record<Language, Translations> = {
     addLocationName: 'Nom du site',
     guideMenusTitle: '📁 Menu Fichier & ⚙️ Paramètres',
     guideMenusDesc: 'Le menu Fichier permet d’initialiser un nouveau projet vierge, d’ouvrir un fichier .json existant, de sauvegarder ou d’exporter en image PNG. Le menu Paramètres regroupe ce mode d’emploi, le choix du thème (clair/sombre) et les paramètres de langue.',
+    multicustomer: 'Multicustomer',
+    multitenantCustomer: 'Client Multi-tenant',
+    multicustomerVariant: 'Type d’environnement',
+    configNr: 'Config. Nr.',
+    trunkId: 'Trunk ID',
+    selectMultitenantCustomer: '-- Choisir le client Multi-tenant --',
+    cpeCount: 'Nombre de CPE',
+    serviceBuilder: 'Générateur de Services',
+    serviceBuilderDesc: 'Configurer des services télécoms modulaires et des composants réseau',
+    guideMulticustomerTitle: '🏢 Environnements Multicustomer',
+    guideMulticustomerDesc: 'Sélectionnez "Multicustomer" comme type de service pour les environnements mutualisés (VOV ou VOV + CN). Indiquez le client : Esprit (N2G), IP Voice Group Services BV (UFC), PCC Omnia (1 ou 2 CPE) ou TSG. Le schéma affiche automatiquement le bloc Mediant correspondant avec le numéro de configuration ou Trunk ID modifiable. Pour Esprit, le titre devient "Esprit MultiCustomer: [Nom du client]" et l’architecture intègre automatiquement Mediant 006 & 007, les adresses WAN (10.183.57.xxx & 10.183.58.xxx), LAN (10.20.0.xxx & 10.20.1.xxx sous 10.20.0.0/22), un pare-feu (Firewall avec adresse 10.20.2.xxx) et un second nuage Customer LAN avec le PBX.',
   },
 };

@@ -4,8 +4,9 @@ export function isValidIPv4(ip: string): boolean {
   const parts = clean.split('.');
   if (parts.length !== 4) return false;
   return parts.every(part => {
+    if (!/^\d{1,3}$/.test(part)) return false;
     const num = parseInt(part, 10);
-    return !isNaN(num) && num >= 0 && num <= 255 && part === num.toString();
+    return !isNaN(num) && num >= 0 && num <= 255;
   });
 }
 
@@ -146,4 +147,12 @@ export function getNextMediantHostname(locations: any[]): string {
 
   const nextNum = maxNum + 1;
   return `MEDIANT-${nextNum.toString().padStart(2, '0')}`;
+}
+
+export function padTo3Digits(val: string | number | undefined): string {
+  if (val === undefined || val === null) return '001';
+  const str = String(val).trim();
+  const digits = str.replace(/\D/g, '');
+  if (!digits) return '001';
+  return digits.padStart(3, '0').slice(-3);
 }

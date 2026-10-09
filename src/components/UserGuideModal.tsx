@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, MousePointer, Move, ZoomIn, Hash, Server, Download, ShieldCheck, BookOpen, Edit3, Maximize2, Network, FolderOpen, MapPin, Phone, Settings } from 'lucide-react';
+import { X, MousePointer, Move, ZoomIn, Hash, Server, Download, ShieldCheck, BookOpen, Edit3, Maximize2, Network, FolderOpen, MapPin, Phone, Settings, Building2 } from 'lucide-react';
 import { Language, translations } from '../i18n/translations';
 
 interface Props {
@@ -69,6 +69,26 @@ export function UserGuideModal({ isOpen, onClose, language, darkMode = false }: 
               </p>
               <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-blue-800 dark:text-blue-400 bg-blue-100/60 dark:bg-blue-900/40 px-2 py-1 rounded-md">
                 <span>📁 Bestand &amp; ⚙️ Instellingen</span>
+              </div>
+            </div>
+
+            {/* Multicustomer / Multi-tenant Omgevingen */}
+            <div className={`p-4 rounded-xl border transition-all ${
+              darkMode ? 'bg-slate-800/60 border-slate-700/80 hover:border-indigo-500/50' : 'bg-indigo-50/50 border-indigo-100 hover:border-indigo-300'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-1.5 rounded-lg bg-indigo-600 text-white">
+                  <Building2 className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-sm text-indigo-800 dark:text-indigo-300">
+                  {t.guideMulticustomerTitle}
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                {t.guideMulticustomerDesc}
+              </p>
+              <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-indigo-800 dark:text-indigo-400 bg-indigo-100/60 dark:bg-indigo-900/40 px-2 py-1 rounded-md">
+                <span>Esprit | IP Voice Group | PCC Omnia | TSG</span>
               </div>
             </div>
 
