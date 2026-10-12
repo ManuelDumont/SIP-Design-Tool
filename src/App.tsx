@@ -1005,46 +1005,75 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Locaties balk (Tabs + Direct toevoegen knop - niet tonen bij Multicustomer) */}
+                {/* Locaties balk (Verticaal onder elkaar bij meerdere locaties zodat alle lange locatienamen goed leesbaar zijn) */}
                 {!locations.some(l => l.isMulticustomer || (l.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.isMulticustomer)) && (
-                  <div className={`px-4 py-2 border-b flex items-center justify-between gap-2 shrink-0 ${
+                  <div className={`px-4 py-2.5 border-b shrink-0 ${
                     darkMode ? 'bg-slate-850 border-slate-800' : 'bg-white border-slate-200'
                   }`}>
-                    <div className="flex items-center gap-1.5 overflow-x-auto py-0.5 flex-1 min-w-0">
-                      <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mr-1 shrink-0">
-                        {t.locations}:
-                      </span>
-                      {locations.map((loc, idx) => (
-                        <button
-                          key={loc.id}
-                          onClick={() => setActiveLocationId(loc.id)}
-                          className={`px-2.5 py-1 rounded-md text-xs font-semibold whitespace-nowrap transition-all cursor-pointer ${
-                            activeLocationId === loc.id
-                              ? 'bg-blue-600 text-white shadow-sm'
-                              : darkMode
-                                ? 'bg-slate-800 hover:bg-slate-700 text-slate-300'
-                                : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
-                          }`}
-                        >
-                          {loc.locationName?.trim() || `${t.singleLocation} ${idx + 1}`}
-                        </button>
-                      ))}
+                    {/* Bovenbalk: Locaties teller en Toevoegen knop */}
+                    <div className="flex items-center justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-1.5">
+                        <MapPin className="w-3.5 h-3.5 text-blue-500" />
+                        <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                          {t.locations} ({locations.length})
+                        </span>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={() => handleAddNewLocationDirect()}
+                        className={`text-[11px] font-bold flex items-center gap-1 px-2.5 py-1 rounded-md transition-all shrink-0 cursor-pointer shadow-xs ${
+                          darkMode 
+                            ? 'bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-500/40' 
+                            : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 hover:border-blue-300'
+                        }`}
+                        title={locations.length === 1 ? t.addSecondLocationFull : t.addExtraLocationFull}
+                      >
+                        <Plus className="w-3.5 h-3.5 text-blue-500" />
+                        <span>
+                          {locations.length === 1 ? t.addSecondLocation : `+ ${t.singleLocation}`}
+                        </span>
+                      </button>
                     </div>
 
-                    <button
-                      onClick={() => handleAddNewLocationDirect()}
-                      className={`text-[11px] font-bold flex items-center gap-1 px-2.5 py-1 rounded-md transition-all shrink-0 cursor-pointer shadow-xs ${
-                        darkMode 
-                          ? 'bg-blue-600/30 hover:bg-blue-600/50 text-blue-300 border border-blue-500/40' 
-                          : 'bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 hover:border-blue-300'
-                      }`}
-                      title={locations.length === 1 ? t.addSecondLocationFull : t.addExtraLocationFull}
-                    >
-                      <Plus className="w-3.5 h-3.5 text-blue-500" />
-                      <span>
-                        {locations.length === 1 ? t.addSecondLocation : `+ ${t.singleLocation}`}
-                      </span>
-                    </button>
+                    {/* Locatienamen ONDER ELKAAR (verticaal) voor optimale leesbaarheid van lange namen */}
+                    <div className="flex flex-col gap-1.5 max-h-48 overflow-y-auto pr-0.5">
+                      {locations.map((loc, idx) => {
+                        const isCurrent = activeLocationId === loc.id;
+                        const locDisplayName = loc.locationName?.trim() || `${t.singleLocation} ${idx + 1}`;
+                        const cpeCount = (loc.cpes || []).length;
+                        return (
+                          <button
+                            key={loc.id}
+                            type="button"
+                            onClick={() => setActiveLocationId(loc.id)}
+                            className={`w-full text-left px-3 py-1.5 rounded-md text-xs font-semibold transition-all cursor-pointer flex items-center justify-between gap-2 ${
+                              isCurrent
+                                ? 'bg-blue-600 text-white shadow-xs ring-1 ring-blue-500'
+                                : darkMode
+                                  ? 'bg-slate-800 hover:bg-slate-750 text-slate-300 border border-slate-700/60'
+                                  : 'bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 min-w-0 flex-1">
+                              <span className={`w-2 h-2 rounded-full shrink-0 ${
+                                isCurrent ? 'bg-white' : 'bg-slate-400'
+                              }`} />
+                              <span className="truncate leading-snug" title={locDisplayName}>
+                                {locDisplayName}
+                              </span>
+                            </div>
+                            <span className={`text-[10px] px-1.5 py-0.5 rounded font-mono shrink-0 ${
+                              isCurrent
+                                ? 'bg-blue-700 text-blue-100'
+                                : darkMode ? 'bg-slate-900 text-slate-400' : 'bg-slate-200/80 text-slate-500'
+                            }`}>
+                              {cpeCount} {cpeCount === 1 ? 'CPE' : 'CPEs'}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
 
