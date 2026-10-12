@@ -1,5 +1,5 @@
 import React from 'react';
-import { X, MousePointer, Move, ZoomIn, Hash, Server, Download, ShieldCheck, BookOpen, Edit3, Maximize2, Network, FolderOpen, MapPin, Phone, Settings, Building2 } from 'lucide-react';
+import { X, MousePointer, Move, ZoomIn, Hash, Server, Download, ShieldCheck, BookOpen, Edit3, Maximize2, Network, FolderOpen, MapPin, Phone, Settings, Building2, Sliders } from 'lucide-react';
 import { Language, translations } from '../i18n/translations';
 
 interface Props {
@@ -92,6 +92,29 @@ export function UserGuideModal({ isOpen, onClose, language, darkMode = false }: 
               </div>
             </div>
 
+            {/* Diensten Bouwstudio (Zelf Diensten Samenstellen) */}
+            <div className={`p-4 rounded-xl border transition-all md:col-span-2 ${
+              darkMode ? 'bg-slate-800/80 border-blue-500/40 hover:border-blue-500/70' : 'bg-blue-50/70 border-blue-200 hover:border-blue-400'
+            }`}>
+              <div className="flex items-center gap-2 mb-2">
+                <div className="p-1.5 rounded-lg bg-blue-600 text-white">
+                  <Sliders className="w-4 h-4" />
+                </div>
+                <h3 className="font-bold text-sm text-blue-800 dark:text-blue-300">
+                  {t.guideServiceBuilderTitle}
+                </h3>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                {t.guideServiceBuilderDesc}
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-1.5 text-[11px] font-semibold text-blue-800 dark:text-blue-300">
+                <span className="bg-blue-100/80 dark:bg-blue-900/50 px-2 py-0.5 rounded-md">Shift + Klik = Meervoudig selecteren</span>
+                <span className="bg-blue-100/80 dark:bg-blue-900/50 px-2 py-0.5 rounded-md">Connectoren bewegen mee</span>
+                <span className="bg-blue-100/80 dark:bg-blue-900/50 px-2 py-0.5 rounded-md">Scrollwiel = In-/Uitzoomen</span>
+                <span className="bg-blue-100/80 dark:bg-blue-900/50 px-2 py-0.5 rounded-md">DEL = Wissen</span>
+              </div>
+            </div>
+
             {/* Direct bewerken in het ontwerp */}
             <div className={`p-4 rounded-xl border transition-all ${
               darkMode ? 'bg-slate-800/60 border-slate-700/80 hover:border-amber-500/50' : 'bg-amber-50/50 border-amber-100 hover:border-amber-300'
@@ -148,7 +171,7 @@ export function UserGuideModal({ isOpen, onClose, language, darkMode = false }: 
                 {t.guideLocationsDesc}
               </p>
               <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-emerald-800 dark:text-emerald-400 bg-emerald-100/60 dark:bg-emerald-900/40 px-2 py-1 rounded-md">
-                <span>Geen naam = Schoon design | Hover router = + Locatienaam</span>
+                <span>Verticaal onder elkaar | Alle lange namen direct leesbaar</span>
               </div>
             </div>
 

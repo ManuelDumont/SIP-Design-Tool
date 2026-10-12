@@ -138,6 +138,8 @@ export interface Translations {
   serviceBuilderDesc?: string;
   guideMulticustomerTitle: string;
   guideMulticustomerDesc: string;
+  guideServiceBuilderTitle: string;
+  guideServiceBuilderDesc: string;
 }
 
 export const translations: Record<Language, Translations> = {
@@ -201,8 +203,8 @@ export const translations: Record<Language, Translations> = {
     guideInlineEditDesc: 'Klik direct op een tekst of IP-adres in de tekening om deze aan te passen: Klantnaam & Projectnummer in de rode topbalk (SIP Design), Locatienaam bij de Core Router, Mediant Hostnaam & Diensttype, alle WAN/LAN IP-adressen, SIP PBX centrales en het LAN-subnet in de wolk. Druk op Enter of klik ernaast om op te slaan.',
     guideResizeTitle: '📐 Handmatig vergroten/verkleinen (Routers & Wolken)',
     guideResizeDesc: 'Beweeg over een router (SBC, Core Router of Mediant) of over de Customer LAN-wolk. In de rechteronderhoek verschijnt een blauw schaal-handvatje (⤡). Sleep dit handvatje om het element direct handmatig groter of kleiner te schalen. Dubbelklik op het schaal-handvatje om direct terug te keren naar de standaardgrootte (100%).',
-    guideLocationsTitle: '📍 Locaties & Optionele Naamgeving',
-    guideLocationsDesc: 'Locatienaam is niet verplicht: als u niets invult, blijft het ontwerp 100% schoon zonder loze badges. U kunt direct de eerste CPE invullen. Een 2e of extra locatie voegt u direct toe via de knop "+ 2e Locatie". Achteraf kunt u te allen tijde alsnog namen toevoegen via het zijpaneel of door met de muis over de router te bewegen (+ Locatienaam).',
+    guideLocationsTitle: '📍 Locaties & Verticale Locatielijst',
+    guideLocationsDesc: 'Bij meerdere locaties bij een klant worden de locatienamen nu overzichtelijk onder elkaar weergegeven in het linkerpaneel, zodat ook lange locatienamen (zoals Hoofdkantoor Amsterdam) altijd volledig leesbaar zijn. Klik op een locatie om direct de bijbehorende Medianten en instellingen te bewerken. Gebruik de knop "+ Locatie" om een nieuwe vestiging toe te voegen. Locatienaam is optioneel: zonder naam blijft het ontwerp 100% schoon.',
     guidePbxTitle: '📞 SIP PBX & Hoofdletter Hostnamen',
     guidePbxDesc: 'Telefooncentrales worden aangeduid als SIP PBX (lokaal binnen het LAN) of Routed SIP PBX (buiten het LAN, via de Default Gateway). Mediant hostnamen worden altijd automatisch in hoofdletters weergegeven (bijv. MEDIANT-01), ook als u kleine letters intypt.',
     guideSubnetRoutingTitle: '🌐 Slimme SIP PBX Routering',
@@ -279,6 +281,8 @@ export const translations: Record<Language, Translations> = {
     serviceBuilderDesc: 'Configureer modulaire telecom-diensten en netwerkbouwstenen',
     guideMulticustomerTitle: '🏢 Multicustomer Omgevingen',
     guideMulticustomerDesc: 'Kies "Multicustomer" bij Diensttype voor gedeelde telecom-omgevingen (VOV of VOV + CN). Geef aan voor welke klant de omgeving is: Esprit (N2G), IP Voice Group Services BV (UFC), PCC Omnia (1 of 2 CPE’s) of TSG. In het ontwerp verschijnt automatisch het bijbehorende Mediant-tekstblok met instelbaar Config. Nr. of Trunk ID. Voor Esprit wordt de titel "Esprit MultiCustomer: [Klantnaam]" en bevat de architectuur automatisch Mediant 006 & 007, WAN-adressen (10.183.57.xxx & 10.183.58.xxx), LAN (10.20.0.xxx & 10.20.1.xxx in 10.20.0.0/22), een Firewall (met 10.20.2.xxx adres) en een tweede kleinere Customer LAN wolk met de PBX.',
+    guideServiceBuilderTitle: '🛠️ Diensten Bouwstudio (Zelf Diensten Samenstellen)',
+    guideServiceBuilderDesc: 'Bouw eigen modulaire telecom-diensten via Bestand > Diensten Bouwstudio. Voeg routers, Medianten, wolken, PBX\'en, firewalls, telefoonhoorns, connectoren en vrije tekst toe. Houd Shift ingedrukt om meerdere elementen tegelijk te selecteren en gezamenlijk te verslepen. Connectoren bewegen automatisch mee met aangesloten elementen. U kunt connectoren ook in hun geheel verplaatsen, of begin- en eindpunten magnetisch aansluiten en weer vrijmaken. Zoom vloeiend in en uit met het scrollwiel van de muis. Opgeslagen diensten zijn direct selecteerbaar in de dropdowns van elke locatie!',
   },
   en: {
     appName: 'SIP Design Maker',
@@ -340,8 +344,8 @@ export const translations: Record<Language, Translations> = {
     guideInlineEditDesc: 'Click directly on any label or IP address in the diagram to edit it instantly: Customer Name & Project Number in the red top bar (SIP Design), Location Name at the Core Router, Mediant Hostname & Service, WAN/LAN IPs, SIP PBX systems, and LAN subnet inside the cloud. Press Enter or click outside to save.',
     guideResizeTitle: '📐 Manual Resizing (Routers & Clouds)',
     guideResizeDesc: 'Hover over any router (SBC, Core Router, or Mediant) or the Customer LAN cloud. A blue resize handle (⤡) appears in the bottom-right corner. Drag this handle to enlarge or shrink the element. Double-click the corner handle to return to the default 100% size.',
-    guideLocationsTitle: '📍 Locations & Optional Naming',
-    guideLocationsDesc: 'Providing a location name is optional. If left blank, the design sheet remains 100% clean without placeholders. You can directly proceed to configure the first CPE. Add a 2nd or extra location instantly via the "+ 2nd Location" button. Names can always be added later via the side panel or by hovering over the router (+ Location).',
+    guideLocationsTitle: '📍 Locations & Vertical Location List',
+    guideLocationsDesc: 'When a customer has multiple locations, names are clearly stacked vertically in the left sidebar so long location names are always completely visible. Click any location to immediately view and edit its Mediants and settings. Use "+ Location" to add a new site. Location names are optional: leaving them blank keeps the design 100% clean.',
     guidePbxTitle: '📞 SIP PBX & Uppercase Hostnames',
     guidePbxDesc: 'Phone systems are designated as SIP PBX (local within the LAN) or Routed SIP PBX (outside the LAN, via Default Gateway). Mediant hostnames are always automatically capitalized (e.g. MEDIANT-01), even if typed in lowercase.',
     guideSubnetRoutingTitle: '🌐 Smart SIP PBX Routing',
@@ -418,6 +422,8 @@ export const translations: Record<Language, Translations> = {
     serviceBuilderDesc: 'Configure modular telecom services and network components',
     guideMulticustomerTitle: '🏢 Multicustomer Environments',
     guideMulticustomerDesc: 'Select "Multicustomer" under Service Type for multi-tenant environments (VOV or VOV + CN). Specify the client: Esprit (N2G), IP Voice Group Services BV (UFC), PCC Omnia (1 or 2 CPEs), or TSG. The diagram automatically displays the corresponding Multi Customer Mediant block with editable Config. Nr. or Trunk ID. For Esprit, the title becomes "Esprit MultiCustomer: [Customer Name]" and the architecture automatically configures Mediant 006 & 007, WAN IPs (10.183.57.xxx & 10.183.58.xxx), LAN IPs (10.20.0.xxx & 10.20.1.xxx in 10.20.0.0/22), a Firewall (with 10.20.2.xxx IP), and a second smaller Customer LAN cloud with the PBX.',
+    guideServiceBuilderTitle: '🛠️ Service Builder Studio (Custom Telecom Services)',
+    guideServiceBuilderDesc: 'Build custom modular telecom services via File > Service Builder Studio. Add routers, Mediants, clouds, PBXs, firewalls, endpoints, connectors, and free text. Hold Shift to multi-select and drag groups together. Connectors automatically track and follow connected elements. You can also drag whole connectors or magnetically snap/unlink their endpoints. Smoothly zoom with the mouse scroll wheel. Saved services are immediately available in every location\'s service dropdown!',
   },
   fr: {
     appName: 'SIP Design Maker',
@@ -479,8 +485,8 @@ export const translations: Record<Language, Translations> = {
     guideInlineEditDesc: 'Cliquez directement sur un texte ou une adresse IP dans le schéma pour le modifier : Nom du client et Numéro de projet dans le bandeau supérieur rouge (SIP Design), Nom du site, Nom d’hôte et Service du Mediant, adresses IP WAN/LAN, SIP PBX et sous-réseau LAN dans le nuage. Appuyez sur Entrée ou cliquez à l’extérieur pour enregistrer.',
     guideResizeTitle: '📐 Redimensionnement manuel (Routeurs & Nuages)',
     guideResizeDesc: 'Survolez un routeur (SBC, Core Router ou Mediant) ou le nuage Customer LAN. Une poignée bleue (⤡) apparaît dans le coin inférieur droit. Faites-la glisser pour ajuster la taille. Double-cliquez sur la poignée pour rétablir la taille par défaut (100%).',
-    guideLocationsTitle: '📍 Sites & Dénomination facultative',
-    guideLocationsDesc: 'Le nom de site est facultatif : sans nom, le schéma reste 100% propre sans badge superflu. Vous pouvez configurer directement le premier CPE. Ajoutez un 2e site ou site supplémentaire avec le bouton "+ 2e Site". Vous pouvez ajouter ou modifier le nom ultérieurement dans le volet ou en survolant le routeur (+ Nom de site).',
+    guideLocationsTitle: '📍 Sites & Liste Verticale des Emplacements',
+    guideLocationsDesc: 'En cas de sites multiples pour un client, les noms de sites sont désormais disposés verticalement les uns sous les autres dans le volet latéral, garantissant une lisibilité parfaite des noms longs. Cliquez sur un site pour afficher et modifier ses équipements Mediant. Utilisez "+ Site" pour ajouter un nouvel emplacement. Les noms de site sont optionnels.',
     guidePbxTitle: '📞 SIP PBX & Noms d’hôtes en majuscules',
     guidePbxDesc: 'Les autocommutateurs sont désignés sous le nom de SIP PBX (local sur le LAN) ou Routed SIP PBX (hors du sous-réseau, via la passerelle par défaut). Les noms d’hôtes Mediant sont toujours automatiquement mis en majuscules (ex. MEDIANT-01), même saisis en minuscules.',
     guideSubnetRoutingTitle: '🌐 Routage intelligent SIP PBX',
@@ -557,5 +563,7 @@ export const translations: Record<Language, Translations> = {
     serviceBuilderDesc: 'Configurer des services télécoms modulaires et des composants réseau',
     guideMulticustomerTitle: '🏢 Environnements Multicustomer',
     guideMulticustomerDesc: 'Sélectionnez "Multicustomer" comme type de service pour les environnements mutualisés (VOV ou VOV + CN). Indiquez le client : Esprit (N2G), IP Voice Group Services BV (UFC), PCC Omnia (1 ou 2 CPE) ou TSG. Le schéma affiche automatiquement le bloc Mediant correspondant avec le numéro de configuration ou Trunk ID modifiable. Pour Esprit, le titre devient "Esprit MultiCustomer: [Nom du client]" et l’architecture intègre automatiquement Mediant 006 & 007, les adresses WAN (10.183.57.xxx & 10.183.58.xxx), LAN (10.20.0.xxx & 10.20.1.xxx sous 10.20.0.0/22), un pare-feu (Firewall avec adresse 10.20.2.xxx) et un second nuage Customer LAN avec le PBX.',
+    guideServiceBuilderTitle: '🛠️ Studio de Création de Services (Services Sur-Mesure)',
+    guideServiceBuilderDesc: 'Concevez des services télécoms modulaires sur mesure via Fichier > Studio de Création de Services. Ajoutez routeurs, Mediants, nuages, PBX, pare-feux, combinés, connecteurs et zones de texte. Maintenez Maj (Shift) pour sélectionner et déplacer plusieurs éléments ensemble. Les connecteurs suivent automatiquement leurs éléments reliés. Zoomez avec la molette de la souris. Tout service enregistré devient immédiatement disponible dans les menus déroulants de chaque site !',
   },
 };
