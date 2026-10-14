@@ -6,6 +6,7 @@ import { getCidrFromSubnetString, isValidIPv4, isInSameSubnet, getSubnetNetworkA
 import { getEspritConfigByNumber } from '../data/espritConfigs';
 import { findServiceDefinition } from '../data/servicesStore';
 import { Language, translations } from '../i18n/translations';
+import { VodafoneZiggoLogo } from './VodafoneZiggoLogo';
 
 // Standaard IP Netwerkrouter (geen wireless antennes, 4 routing pijlen)
 function CoreRouterSvg({ width = 100, height = 40 }: { width?: number; height?: number }) {
@@ -446,7 +447,7 @@ function getCloudConnectionPoint(
 }
 
 function getCpeExtents(cpe: any) {
-  const isVovCn = cpe.serviceType === 'VOV + CN';
+  const isVovCn = cpe.serviceType === 'VOV & CN' || cpe.serviceType === 'VOV + CN';
   const cidr = getCidrFromSubnetString(cpe.lanSubnet) ?? 24;
   const effectiveLanIp = 
     (cpe.serviceType === 'CN' && isValidIPv4(cpe.cnLanIp) ? cpe.cnLanIp : '') ||
@@ -1016,12 +1017,12 @@ export function NetworkDiagram({
       locations
         .flatMap(loc => loc.cpes || [])
         .map(c => c.serviceType)
-        .filter((s): s is NonNullable<typeof s> => Boolean(s && s.trim() && s !== 'Multicustomer' && !s.startsWith('Multicustomer')))
-        .flatMap(s => s.split('+').map(item => item.trim()))
-        .filter(s => Boolean(s && s !== 'Multicustomer'))
+        .filter((s): s is NonNullable<typeof s> => Boolean(s && s.trim() && s !== 'Multicustomer' && s !== 'Multicustomer - Esprit' && !s.startsWith('Multicustomer')))
+        .flatMap(s => s.split(/[+&]/).map(item => item.trim()))
+        .filter(s => Boolean(s && s !== 'Multicustomer' && s !== 'Multicustomer - Esprit'))
     )
   );
-  const servicesText = allServices.join(' + ');
+  const servicesText = allServices.join(' & ');
 
   // Titel in de rode bovenbalk: "SIP Design" blijft standaard staan,
   // Voor Esprit Multicustomer wordt de titel conform verzoek: "Esprit  MultiCustomer: " + klantnaam
@@ -1083,12 +1084,12 @@ export function NetworkDiagram({
   
   const totalCpes = locations.reduce((sum, loc) => sum + (loc.cpes?.length || 0), 0);
   const hasContent = Boolean(effectiveCustomerName.trim()) || totalCpes > 0;
-  const isMultiAny = Boolean(multicustomerInfo) || isEspritMulti || locations.some(loc => loc.isMulticustomer || (loc.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.isMulticustomer));
+  const isMultiAny = Boolean(multicustomerInfo) || isEspritMulti || locations.some(loc => loc.isMulticustomer || (loc.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType?.startsWith('Multicustomer') || c.isMulticustomer));
   const hasAnyDemarcation = !isMultiAny && locations.some(loc => Boolean(loc.showDemarcationLine));
-  const hasAnyVovCn = locations.some(loc => loc.cpes?.some(c => c.serviceType === 'VOV + CN' || Boolean(findServiceDefinition(c.serviceType)?.hasCn) || (c.serviceType === 'Multicustomer' && c.multicustomerVariant === 'VOV + CN')));
+  const hasAnyVovCn = locations.some(loc => loc.cpes?.some(c => c.serviceType === 'VOV & CN' || c.serviceType === 'VOV + CN' || Boolean(findServiceDefinition(c.serviceType)?.hasCn) || ((c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType?.startsWith('Multicustomer')) && (c.multicustomerVariant === 'VOV & CN' || c.multicustomerVariant === 'VOV + CN'))));
   const shouldStagger = totalCpes > 2;
   
-  // Als VOV+CN geselecteerd is, plaats de CPE's ruimer (540px) zodat beide WAN/LAN reeksen perfect leesbaar zijn en elkaar nooit overlappen
+  // Als VOV & CN geselecteerd is, plaats de CPE's ruimer (540px) zodat beide WAN/LAN reeksen perfect leesbaar zijn en elkaar nooit overlappen
   const CPE_SPACING = hasAnyVovCn ? 540 : 320;
   const baseStartX = shouldStagger ? 180 : 80;
 
@@ -1307,8 +1308,8 @@ export function NetworkDiagram({
         });
       }
 
-      const isVovCn = cpe.serviceType === 'VOV + CN' || Boolean(findServiceDefinition(cpe.serviceType)?.hasCn) || (cpe.serviceType === 'Multicustomer' && cpe.multicustomerVariant === 'VOV + CN');
-      const isEsprit = (cpe.serviceType === 'Multicustomer' || cpe.isMulticustomer) && (cpe.multicustomerClient === 'Esprit' || loc.multicustomerClient === 'Esprit');
+      const isVovCn = cpe.serviceType === 'VOV & CN' || cpe.serviceType === 'VOV + CN' || Boolean(findServiceDefinition(cpe.serviceType)?.hasCn) || ((cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType?.startsWith('Multicustomer')) && (cpe.multicustomerVariant === 'VOV & CN' || cpe.multicustomerVariant === 'VOV + CN'));
+      const isEsprit = (cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType?.startsWith('Multicustomer') || cpe.isMulticustomer) && (cpe.multicustomerClient === 'Esprit' || loc.multicustomerClient === 'Esprit');
       const hasGw = !isEsprit && (Boolean(cpe.defaultGateway && cpe.defaultGateway.trim()) || routedPbxs.length > 0);
       
       // Gateway basispositie gekoppeld aan cpeX, beweegt mee met de cluster maar kan ook individueel versleept worden
@@ -1406,7 +1407,7 @@ export function NetworkDiagram({
       const isMulti = clusterCpes.length > 1;
       
       const isEspritCluster = clusterCpes.some(c => 
-        (c.serviceType === 'Multicustomer' || c.isMulticustomer) &&
+        (c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType?.startsWith('Multicustomer') || c.isMulticustomer) &&
         (c.multicustomerClient === 'Esprit' || loc.multicustomerClient === 'Esprit')
       );
 
@@ -1414,7 +1415,7 @@ export function NetworkDiagram({
       const lastCpe = clusterCpes[clusterCpes.length - 1];
       const rightPadding = isEspritCluster 
         ? 70 
-        : ((lastCpe.serviceType === 'VOV + CN' || (lastCpe.serviceType === 'Multicustomer' && lastCpe.multicustomerVariant === 'VOV + CN')) ? 240 : 190);
+        : ((lastCpe.serviceType === 'VOV & CN' || lastCpe.serviceType === 'VOV + CN' || ((lastCpe.serviceType === 'Multicustomer' || lastCpe.serviceType === 'Multicustomer - Esprit' || lastCpe.serviceType?.startsWith('Multicustomer')) && (lastCpe.multicustomerVariant === 'VOV & CN' || lastCpe.multicustomerVariant === 'VOV + CN'))) ? 240 : 190);
       const cloudRight = maxX + rightPadding;
       const defaultWidth = isEspritCluster ? Math.max(340, cloudRight - cloudLeft) : Math.max(380, cloudRight - cloudLeft);
       const customCloud = customSizes[cloudId];
@@ -1713,7 +1714,7 @@ export function NetworkDiagram({
                     </>
                   ) : (
                     <>
-                      <span className="font-semibold">SIP Design</span>
+                      <span className="font-semibold tracking-wide">SIP DESIGN</span>
                       <span className="text-white/60 font-light">-</span>
                       <InlineEdit 
                         value={effectiveCustomerName} 
@@ -1744,11 +1745,19 @@ export function NetworkDiagram({
                   )}
                 </div>
               </div>
-              {servicesText && !isMultiAny && !isEspritMulti && (
-                <div className="text-white/90 text-sm font-semibold bg-white/15 px-3 py-1 rounded-full border border-white/20 select-none">
-                  {servicesText}
+              
+              {/* Rechterzijde van de titelbalk: eventueel dienstenlabel + officieel VodafoneZiggo Logo */}
+              <div className="flex items-center gap-3.5">
+                {servicesText && !isMultiAny && !isEspritMulti && (
+                  <div className="text-white/90 text-sm font-semibold bg-white/15 px-3 py-1 rounded-full border border-white/20 select-none">
+                    {servicesText}
+                  </div>
+                )}
+                {/* VodafoneZiggo Logo rechts in de titelbalk (origineel logo, passend geschaald) */}
+                <div className="bg-white px-2.5 py-1 rounded-md flex items-center shadow-xs shrink-0 select-none" title="VodafoneZiggo">
+                  <VodafoneZiggoLogo className="h-7 w-auto max-h-[30px]" />
                 </div>
-              )}
+              </div>
             </div>
 
         {/* Diagram Area (Light Schema) */}
@@ -2372,13 +2381,13 @@ export function NetworkDiagram({
                             inputClassName="uppercase"
                           />
                         </span>
-                        {!(cpe.serviceType === 'Multicustomer' || cpe.isMulticustomer || Boolean(cpe.multicustomerClient) || Boolean(multicustomerInfo)) && (
+                        {!(cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType?.startsWith('Multicustomer') || cpe.isMulticustomer || Boolean(cpe.multicustomerClient) || Boolean(multicustomerInfo)) && (
                           <span className="text-[10px] font-black text-white bg-blue-600 px-2 py-0.5 rounded-sm shadow-sm hover:bg-blue-700">
                             <InlineEdit 
                               value={cpe.serviceType || 'Dienst'} 
                               placeholder="Dienst" 
                               onSave={(val) => handleUpdateCpeField(cpe.id, 'serviceType', val)}
-                              title="Klik om type dienst direct aan te passen (VOV, CN, VOV + CN)"
+                              title="Klik om type dienst direct aan te passen (VOV, CN, VOV & CN, Multicustomer - Esprit)"
                               className="text-white hover:text-white"
                               inputClassName="text-slate-900 font-bold"
                             />
@@ -2476,8 +2485,8 @@ export function NetworkDiagram({
                       );
                     })()}
 
-                    {/* IP Info labels: Rechts van Mediant (alleen bij combidienst met CN: VOV + CN) - DIRECT BEWERKBAAR */}
-                    {(cpe.serviceType === 'VOV + CN' || Boolean(findServiceDefinition(cpe.serviceType)?.hasCn) || (cpe.serviceType === 'Multicustomer' && cpe.multicustomerVariant === 'VOV + CN')) && (
+                    {/* IP Info labels: Rechts van Mediant (alleen bij combidienst met CN: VOV & CN) - DIRECT BEWERKBAAR */}
+                    {(cpe.serviceType === 'VOV & CN' || cpe.serviceType === 'VOV + CN' || Boolean(findServiceDefinition(cpe.serviceType)?.hasCn) || ((cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType?.startsWith('Multicustomer')) && (cpe.multicustomerVariant === 'VOV & CN' || cpe.multicustomerVariant === 'VOV + CN'))) && (
                       <div className="absolute top-0 left-[110px] text-left whitespace-nowrap bg-white/90 p-1.5 rounded border border-slate-200 shadow-xs z-30">
                         <div className="grid grid-cols-[auto_auto] gap-x-1.5 gap-y-0.5 text-left items-center">
                           <span className="text-blue-700 font-bold text-[11px] leading-tight whitespace-nowrap text-left">CN WAN:</span>

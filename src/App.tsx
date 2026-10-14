@@ -971,7 +971,7 @@ export default function App() {
               /* ZODRA ER EEN LOCATIE IS: Klantbalk + Locaties tabs + Active Location Form */
               <div className="flex flex-col h-full overflow-hidden">
                 {/* Klant header compact (niet tonen bij Multicustomer omdat formulier zelf direct Klant en Projectnummer bevat) */}
-                {!locations.some(l => l.isMulticustomer || (l.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.isMulticustomer)) && (
+                {!locations.some(l => l.isMulticustomer || (l.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType?.startsWith('Multicustomer') || c.isMulticustomer)) && (
                   <div className={`px-4 py-2.5 border-b flex items-center justify-between shrink-0 ${
                     darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'
                   }`}>
@@ -1006,7 +1006,7 @@ export default function App() {
                 )}
 
                 {/* Locaties balk (Verticaal onder elkaar bij meerdere locaties zodat alle lange locatienamen goed leesbaar zijn) */}
-                {!locations.some(l => l.isMulticustomer || (l.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.isMulticustomer)) && (
+                {!locations.some(l => l.isMulticustomer || (l.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType?.startsWith('Multicustomer') || c.isMulticustomer)) && (
                   <div className={`px-4 py-2.5 border-b shrink-0 ${
                     darkMode ? 'bg-slate-850 border-slate-800' : 'bg-white border-slate-200'
                   }`}>

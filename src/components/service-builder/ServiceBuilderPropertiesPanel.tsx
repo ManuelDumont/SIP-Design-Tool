@@ -1,6 +1,6 @@
 import React from 'react';
 import { BuilderElement } from '../../types';
-import { Sliders, Trash2, Copy, Link2, Unlink, Plus, Minus, Move } from 'lucide-react';
+import { Sliders, Trash2, Copy, Link2, Unlink, Plus, Minus, Move, FileText, Network, CheckCircle2, ChevronRight } from 'lucide-react';
 
 interface ServiceBuilderPropertiesPanelProps {
   selectedIds: string[];
@@ -13,6 +13,7 @@ interface ServiceBuilderPropertiesPanelProps {
   updateElement: (id: string, updates: Partial<BuilderElement>) => void;
   adjustElementScale: (id: string, delta: number) => void;
   getTargetName: (targetId?: string) => string;
+  onOpenScenarioTab?: () => void;
 }
 
 export function ServiceBuilderPropertiesPanel({
@@ -24,7 +25,8 @@ export function ServiceBuilderPropertiesPanel({
   handleDeleteElement,
   updateElement,
   adjustElementScale,
-  getTargetName
+  getTargetName,
+  onOpenScenarioTab
 }: ServiceBuilderPropertiesPanelProps) {
   if (selectedIds.length > 1) {
     return (
@@ -87,12 +89,23 @@ export function ServiceBuilderPropertiesPanel({
         {/* CONNECTOR SPECIFIEKE BEDIENING: ZONDER VAST DROPDOWN-MENU */}
         {selectedElement.type === 'connector' && (
           <div className="space-y-2.5">
+            {/* Directe Verwijderknop voor connector */}
+            <button
+              type="button"
+              onClick={() => handleDeleteElement(selectedElement.id)}
+              className="w-full py-2 px-3 rounded-lg bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold text-xs flex items-center justify-center gap-2 cursor-pointer shadow-xs transition-colors"
+              title="Deze connector verwijderen (of druk op DEL)"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Connector Verwijderen (DEL)</span>
+            </button>
+
             <div className="p-2.5 rounded bg-blue-50/80 dark:bg-blue-950/50 border border-blue-200 dark:border-blue-900 text-[11px] text-blue-800 dark:text-blue-200 leading-relaxed">
               <strong className="block mb-1 flex items-center gap-1 text-blue-700 dark:text-blue-300">
                 <Link2 className="w-3.5 h-3.5" />
                 Aansluitende Connectoren:
               </strong>
-              Sleep de ronde handvatten (begin- en eindpunt) op het canvas naar de gewenste elementen. Zodra u een handvat op een element loslaat, sluit de connector er automatisch strak op aan. U kunt ook op het midden van de connector klikken en slepen om hem in zijn geheel te verplaatsen.
+              Sleep de ronde handvatten (begin- en eindpunt) op het canvas naar de gewenste elementen. Zodra u een handvat op een element loslaat, sluit de connector er automatisch strak op aan. U kunt ook op het midden van de connector klikken en op &quot;Verwijderen&quot; of DEL drukken.
             </div>
 
             {/* Status begin- en eindpunt met mogelijkheid tot ontkoppelen */}
@@ -359,6 +372,96 @@ export function ServiceBuilderPropertiesPanel({
                 darkMode ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300'
               }`}
             />
+          </div>
+        )}
+
+        {/* IP-ADRES UITVRAAGSCENARIO KOPPELING VOOR DIT ELEMENT */}
+        {['router', 'mediant', 'firewall', 'pbx', 'cloud', 'sbc'].includes(selectedElement.type) && (
+          <div className={`p-2.5 rounded-lg border space-y-2 mt-2 transition-all ${
+            selectedElement.requiresIp === false
+              ? darkMode ? 'bg-slate-900/50 border-slate-800 opacity-60' : 'bg-slate-100/60 border-slate-200 opacity-70'
+              : darkMode ? 'bg-blue-950/30 border-blue-800/50' : 'bg-blue-50/70 border-blue-200'
+          }`}>
+            <div className="flex items-center justify-between">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1">
+                <Network className="w-3 h-3" />
+                IP-Uitvraagscenario
+              </span>
+              <label className="inline-flex items-center gap-1.5 cursor-pointer text-[10px] font-semibold">
+                <input
+                  type="checkbox"
+                  checked={selectedElement.requiresIp !== false}
+                  onChange={e => updateElement(selectedElement.id, { requiresIp: e.target.checked })}
+                  className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3.5 h-3.5 cursor-pointer"
+                />
+                <span className={darkMode ? 'text-slate-300' : 'text-slate-700'}>
+                  {selectedElement.requiresIp !== false ? 'Actief' : 'Uit'}
+                </span>
+              </label>
+            </div>
+
+            {selectedElement.requiresIp !== false ? (
+              <div className="space-y-1.5">
+                <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
+                  Dit element genereert automatisch IP-invoervelden in het uitvraagscenario:
+                </p>
+                <div className="flex flex-wrap gap-1">
+                  {selectedElement.type === 'mediant' && (
+                    <>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold">Voice WAN IP</span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold">Voice LAN IP</span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold">Subnetmasker</span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold">Gateway</span>
+                    </>
+                  )}
+                  {selectedElement.type === 'router' && (
+                    <>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold">WAN IP</span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold">Default Gateway</span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold">LAN Interface</span>
+                    </>
+                  )}
+                  {selectedElement.type === 'firewall' && (
+                    <>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold">PBX Gateway IP</span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold">Management IP</span>
+                    </>
+                  )}
+                  {selectedElement.type === 'pbx' && (
+                    <>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold">SIP Server IP</span>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold">Centrale Merk</span>
+                    </>
+                  )}
+                  {selectedElement.type === 'cloud' && (
+                    <>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold">LAN Subnet Range</span>
+                    </>
+                  )}
+                  {selectedElement.type === 'sbc' && (
+                    <>
+                      <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/60 text-blue-700 dark:text-blue-300 font-semibold">SBC Peering IP</span>
+                    </>
+                  )}
+                </div>
+
+                {onOpenScenarioTab && (
+                  <button
+                    type="button"
+                    onClick={onOpenScenarioTab}
+                    className="w-full mt-1 py-1 px-2 rounded text-[10px] font-bold text-blue-600 dark:text-blue-400 bg-white dark:bg-slate-800 hover:bg-blue-50 dark:hover:bg-slate-750 border border-blue-200 dark:border-blue-900 flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <FileText className="w-3 h-3" />
+                    <span>Bekijk in Uitvraagscenario tab</span>
+                    <ChevronRight className="w-3 h-3" />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <p className="text-[10px] text-slate-400 italic">
+                IP-uitvraag uitgeschakeld voor dit specifieke element.
+              </p>
+            )}
           </div>
         )}
       </div>

@@ -1,10 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { CustomServiceDefinition, BuilderElement } from '../types';
 import { getAllServices, saveCustomService, deleteCustomService } from '../data/servicesStore';
 import { 
   X, Plus, Trash2, Shield, Cloud, Server, Network, Check, RefreshCw, 
   Sliders, Move, Phone, Type, Minus, Maximize2, Copy, Split, Link2, Unlink,
-  ZoomIn, ZoomOut, RotateCcw
+  ZoomIn, ZoomOut, RotateCcw, FileText
 } from 'lucide-react';
 import {
   CoreRouterSvg,
@@ -22,6 +22,8 @@ import {
 } from './service-builder/serviceBuilderGeometry';
 import { ServiceBuilderPropertiesPanel } from './service-builder/ServiceBuilderPropertiesPanel';
 import { SavedServicesTab } from './service-builder/SavedServicesTab';
+import { generateIntakeScenario } from './service-builder/serviceBuilderScenario';
+import { ServiceBuilderScenarioTab } from './service-builder/ServiceBuilderScenarioTab';
 
 interface Props {
   isOpen: boolean;
@@ -31,7 +33,7 @@ interface Props {
 }
 
 export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServicesUpdated }: Props) {
-  const [activeTab, setActiveTab] = useState<'studio' | 'saved'>('studio');
+  const [activeTab, setActiveTab] = useState<'studio' | 'scenario' | 'saved'>('studio');
   const [servicesList, setServicesList] = useState<CustomServiceDefinition[]>(() => getAllServices());
 
   // Invoer voor nieuwe dienst opslaan
@@ -41,6 +43,11 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
 
   // Dynamische elementenlijst op het canvas: begint schoon, enkel IP Voice Access Network staat standaard vast
   const [elements, setElements] = useState<BuilderElement[]>([]);
+
+  // Automatisch opgebouwd uitvraagscenario op basis van de elementen op het canvas (sowieso altijd klantnaam, projectnummer, locatie(s))
+  const currentScenario = useMemo(() => {
+    return generateIntakeScenario(elements, serviceName);
+  }, [elements, serviceName]);
 
   // Geselecteerde elementen op het canvas (ondersteunt Shift-selectie voor meerdere elementen tegelijk)
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -495,6 +502,7 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
   const handleMouseDownConnectorEnd = (id: string, endpoint: 1 | 2, e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
+    setSelectedIds([id]);
     setSelectedId(id);
     const el = elements.find(item => item.id === id);
     if (!el) return;
@@ -668,6 +676,8 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
             const curY1 = init.y1 + dy;
             const curX2 = init.x2 + dx;
             const curY2 = init.y2 + dy;
+            const sourceMoves = Boolean(item.sourceElementId && idsToMove.includes(item.sourceElementId));
+            const targetMoves = Boolean(item.targetElementId && idsToMove.includes(item.targetElementId));
             return {
               ...item,
               x: init.x + dx,
@@ -675,7 +685,9 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
               x1: curX1,
               y1: curY1,
               x2: curX2,
-              y2: curY2
+              y2: curY2,
+              sourceElementId: sourceMoves ? item.sourceElementId : undefined,
+              targetElementId: targetMoves ? item.targetElementId : undefined
             };
           }
           return {
@@ -790,7 +802,8 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
       hasRoutedPbx: false,
       hasDefaultGateway: true,
       isBuiltIn: false,
-      builderElements: elements
+      builderElements: elements,
+      intakeScenario: currentScenario
     };
 
     saveCustomService(newDef);
@@ -865,6 +878,25 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
                 }`}
               >
                 🛠️ Bouwstudio
+              </button>
+              <button
+                type="button"
+                onClick={() => setActiveTab('scenario')}
+                className={`px-3 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1.5 ${
+                  activeTab === 'scenario' 
+                    ? 'bg-blue-600 text-white shadow-xs' 
+                    : darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
+                }`}
+                title="Bekijk hoe het uitvraagscenario met IP-adressen, klantnaam, projectnummer en locaties automatisch wordt opgebouwd"
+              >
+                <span>📋 Uitvraagscenario</span>
+                <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-bold ${
+                  activeTab === 'scenario'
+                    ? 'bg-white/20 text-white'
+                    : 'bg-blue-100 text-blue-700 dark:bg-blue-900/60 dark:text-blue-300'
+                }`}>
+                  {currentScenario.questions.filter(q => q.category !== 'general').length} IP
+                </span>
               </button>
               <button
                 type="button"
@@ -1041,6 +1073,35 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
                 </div>
               </div>
 
+              {/* Uitvraagscenario snelle status banner */}
+              <div 
+                onClick={() => setActiveTab('scenario')}
+                className={`p-2.5 rounded-xl border flex items-center justify-between cursor-pointer transition-all hover:scale-[1.01] ${
+                  darkMode ? 'bg-blue-950/20 border-blue-800/40 hover:bg-blue-950/40' : 'bg-blue-50/70 border-blue-200 hover:bg-blue-100/70 shadow-2xs'
+                }`}
+                title="Klik om het automatisch gegenereerde uitvraagscenario te bekijken"
+              >
+                <div className="flex items-center gap-2">
+                  <div className="w-7 h-7 rounded-lg bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                    <FileText className="w-3.5 h-3.5" />
+                  </div>
+                  <div>
+                    <div className="text-[11px] font-bold text-blue-700 dark:text-blue-300 flex items-center gap-1">
+                      <span>Uitvraagscenario</span>
+                      <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-blue-200/70 dark:bg-blue-900 text-blue-800 dark:text-blue-200 font-mono font-bold">
+                        {currentScenario.questions.filter(q => q.category !== 'general').length} IP
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
+                      Klantnaam, Projectnr. &amp; Locaties
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400">
+                  Bekijk &rarr;
+                </span>
+              </div>
+
               {/* Geselecteerd Element Eigenschappen & Formaat Verstellen */}
               <ServiceBuilderPropertiesPanel
                 selectedIds={selectedIds}
@@ -1053,6 +1114,7 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
                 updateElement={updateElement}
                 adjustElementScale={adjustElementScale}
                 getTargetName={getTargetName}
+                onOpenScenarioTab={() => setActiveTab('scenario')}
               />
 
             </div>
@@ -1220,26 +1282,34 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
 
                     return (
                       <g key={`svg-line-${el.id}`}>
-                        {/* Onzichtbare bredere klik-lijn voor makkelijk selecteren */}
+                        {/* Onzichtbare bredere klik- en sleeplijn om de connector in zijn geheel te verplaatsen */}
                         <line
                           x1={rawX1}
                           y1={rawY1}
                           x2={rawX2}
                           y2={rawY2}
                           stroke="transparent"
-                          strokeWidth={20}
-                          className="pointer-events-auto cursor-pointer"
-                          onMouseDown={(e) => handleMouseDownElement(el.id, e)}
+                          strokeWidth={24}
+                          className="pointer-events-auto cursor-move"
+                          onMouseDown={(e) => {
+                            e.stopPropagation();
+                            setSelectedIds([el.id]);
+                            setSelectedId(el.id);
+                            handleMouseDownElement(el.id, e);
+                          }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            if (dragState.hasMoved) return;
-                            if (e.shiftKey) {
-                              setSelectedIds(prev => prev.includes(el.id) ? prev.filter(x => x !== el.id) : [...prev, el.id]);
-                            } else {
-                              setSelectedIds([el.id]);
-                            }
+                            setSelectedIds([el.id]);
+                            setSelectedId(el.id);
                           }}
-                        />
+                          onContextMenu={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            handleDeleteElement(el.id);
+                          }}
+                        >
+                          <title>Sleep om de hele connector te verplaatsen, of klik om te selecteren en verwijderen</title>
+                        </line>
                         {/* De effectieve connectorlijn die ALTIJD strak op de buitenrand aansluit */}
                         <line
                           x1={rawX1}
@@ -1289,100 +1359,120 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
 
                     return (
                       <React.Fragment key={el.id}>
-                        {/* Middelpunt selectiebox */}
+                        {/* Middelpunt actiebalk met grote, direct klikbare vuilnisemmer */}
                         {isSelected && (
                           <div
                             style={{
                               left: Math.round((p1.x + p2.x) / 2),
                               top: Math.round((p1.y + p2.y) / 2),
                               transform: 'translate(-50%, -50%)',
-                              zIndex: 35
+                              zIndex: 50
                             }}
-                            className="absolute pointer-events-auto cursor-grab active:cursor-grabbing p-1 bg-white/95 dark:bg-slate-900/95 rounded border border-blue-400 shadow-xs flex items-center gap-1.5"
-                            onMouseDown={(e) => handleMouseDownElement(el.id, e)}
+                            className="absolute pointer-events-auto p-1.5 bg-white dark:bg-slate-900 rounded-lg border-2 border-red-500 shadow-xl flex items-center gap-2 select-none ring-4 ring-red-500/15"
+                            onMouseDown={(e) => {
+                              e.stopPropagation();
+                            }}
+                            onPointerDown={(e) => {
+                              e.stopPropagation();
+                            }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (dragState.hasMoved) return;
-                              if (e.shiftKey) {
-                                setSelectedIds(prev => prev.includes(el.id) ? prev.filter(x => x !== el.id) : [...prev, el.id]);
-                              } else {
-                                setSelectedIds([el.id]);
-                              }
                             }}
                           >
-                            <span className="text-[9px] font-bold text-blue-700 dark:text-blue-300 font-mono">
-                              Connector
-                            </span>
+                            <div className="flex items-center gap-1.5 pl-1">
+                              <span className="w-2 h-2 rounded-full bg-blue-600"></span>
+                              <span className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                                Connector
+                              </span>
+                            </div>
                             <button
                               type="button"
+                              onMouseDown={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                              }}
+                              onPointerDown={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                              }}
                               onClick={(e) => {
                                 e.stopPropagation();
+                                e.preventDefault();
                                 handleDeleteElement(el.id);
                               }}
-                              className="text-red-500 hover:text-red-700 cursor-pointer"
-                              title="Connector verwijderen (DEL)"
+                              className="px-2.5 py-1 rounded-md bg-red-600 hover:bg-red-700 active:bg-red-800 text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-xs transition-transform active:scale-95"
+                              title="Connector direct verwijderen (of druk op toets DEL)"
                             >
-                              <Trash2 className="w-3 h-3" />
+                              <Trash2 className="w-3.5 h-3.5" />
+                              <span>Verwijderen</span>
                             </button>
                           </div>
                         )}
 
-                        {/* EINDPUNTEN 1 & 2: Alleen zichtbaar als connector geselecteerd is of versleept wordt! */}
-                        {(isSelected || dragState.activeId === el.id) && (
-                          <>
-                            {/* EINDPUNT 1: SUBTIEL CONTACTPUNT IETS DIKKER DAN DE CONNECTOR ZELF */}
-                            <div
+                        {/* EINDPUNTEN 1 & 2: Altijd grijpbaar om aan te sluiten/verleggen, extra prominent wanneer geselecteerd */}
+                        <>
+                          {/* EINDPUNT 1: BEGINPUNT CONNECTOR */}
+                          <div
+                            style={{
+                              left: p1.x,
+                              top: p1.y,
+                              zIndex: 60
+                            }}
+                            className="absolute w-8 h-8 -ml-4 -mt-4 flex items-center justify-center cursor-crosshair pointer-events-auto group/handle"
+                            onMouseDown={(e) => handleMouseDownConnectorEnd(el.id, 1, e)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedIds([el.id]);
+                              setSelectedId(el.id);
+                            }}
+                            title={`Beginpunt connector ${el.sourceElementId ? `(Aangesloten op: ${getTargetName(el.sourceElementId)})` : '(Sleep naar de rand van een element)'}`}
+                          >
+                            <div 
                               style={{
-                                left: p1.x,
-                                top: p1.y,
-                                transform: 'translate(-50%, -50%)',
-                                zIndex: 40
+                                width: isSelected ? Math.max(14, strokeW * 2.2) : Math.max(8, strokeW * 1.4),
+                                height: isSelected ? Math.max(14, strokeW * 2.2) : Math.max(8, strokeW * 1.4),
+                                backgroundColor: isSelected ? '#ffffff' : strokeCol,
+                                borderColor: strokeCol
                               }}
-                              className="absolute w-5 h-5 flex items-center justify-center cursor-crosshair pointer-events-auto group/handle"
-                              onMouseDown={(e) => handleMouseDownConnectorEnd(el.id, 1, e)}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!dragState.hasMoved) setSelectedId(el.id);
-                              }}
-                              title={`Beginpunt connector ${el.sourceElementId ? `(Aangesloten op buitenrand: ${getTargetName(el.sourceElementId)})` : '(Sleep naar de buitenrand van een element)'}`}
-                            >
-                              <div 
-                                style={{
-                                  width: dotSize,
-                                  height: dotSize,
-                                  backgroundColor: strokeCol
-                                }}
-                                className="rounded-full ring-1 ring-white/90 dark:ring-slate-900 shadow-2xs transition-transform group-hover/handle:scale-135"
-                              />
-                            </div>
+                              className={`rounded-full shadow-md transition-transform group-hover/handle:scale-135 ${
+                                isSelected 
+                                  ? 'border-[3px] ring-2 ring-blue-500/60' 
+                                  : 'ring-1 ring-white/80 dark:ring-slate-900 opacity-80 group-hover/handle:opacity-100'
+                              }`}
+                            />
+                          </div>
 
-                            {/* EINDPUNT 2: SUBTIEL CONTACTPUNT IETS DIKKER DAN DE CONNECTOR ZELF */}
-                            <div
+                          {/* EINDPUNT 2: EINDPUNT CONNECTOR */}
+                          <div
+                            style={{
+                              left: p2.x,
+                              top: p2.y,
+                              zIndex: 60
+                            }}
+                            className="absolute w-8 h-8 -ml-4 -mt-4 flex items-center justify-center cursor-crosshair pointer-events-auto group/handle"
+                            onMouseDown={(e) => handleMouseDownConnectorEnd(el.id, 2, e)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedIds([el.id]);
+                              setSelectedId(el.id);
+                            }}
+                            title={`Eindpunt connector ${el.targetElementId ? `(Aangesloten op: ${getTargetName(el.targetElementId)})` : '(Sleep naar de rand van een element)'}`}
+                          >
+                            <div 
                               style={{
-                                left: p2.x,
-                                top: p2.y,
-                                transform: 'translate(-50%, -50%)',
-                                zIndex: 40
+                                width: isSelected ? Math.max(14, strokeW * 2.2) : Math.max(8, strokeW * 1.4),
+                                height: isSelected ? Math.max(14, strokeW * 2.2) : Math.max(8, strokeW * 1.4),
+                                backgroundColor: isSelected ? '#ffffff' : strokeCol,
+                                borderColor: strokeCol
                               }}
-                              className="absolute w-5 h-5 flex items-center justify-center cursor-crosshair pointer-events-auto group/handle"
-                              onMouseDown={(e) => handleMouseDownConnectorEnd(el.id, 2, e)}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!dragState.hasMoved) setSelectedId(el.id);
-                              }}
-                              title={`Eindpunt connector ${el.targetElementId ? `(Aangesloten op buitenrand: ${getTargetName(el.targetElementId)})` : '(Sleep naar de buitenrand van een element)'}`}
-                            >
-                              <div 
-                                style={{
-                                  width: dotSize,
-                                  height: dotSize,
-                                  backgroundColor: strokeCol
-                                }}
-                                className="rounded-full ring-1 ring-white/90 dark:ring-slate-900 shadow-2xs transition-transform group-hover/handle:scale-135"
-                              />
-                            </div>
-                          </>
-                        )}
+                              className={`rounded-full shadow-md transition-transform group-hover/handle:scale-135 ${
+                                isSelected 
+                                  ? 'border-[3px] ring-2 ring-blue-500/60' 
+                                  : 'ring-1 ring-white/80 dark:ring-slate-900 opacity-80 group-hover/handle:opacity-100'
+                              }`}
+                            />
+                          </div>
+                        </>
                       </React.Fragment>
                     );
                   }
@@ -1663,6 +1753,14 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
 
             </div>
           </div>
+        ) : activeTab === 'scenario' ? (
+          <ServiceBuilderScenarioTab
+            darkMode={darkMode}
+            serviceName={serviceName}
+            elements={elements}
+            scenario={currentScenario}
+            onNavigateToStudio={() => setActiveTab('studio')}
+          />
         ) : (
           <SavedServicesTab
             darkMode={darkMode}

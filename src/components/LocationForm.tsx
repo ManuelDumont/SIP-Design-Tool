@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { LocationConfig, CPEConfig, ServiceType, MulticustomerClient } from '../types';
-import { Plus, Trash2, AlertTriangle, ChevronDown, ChevronRight, MapPin, Building2, Server, Hash, Check } from 'lucide-react';
+import { Plus, Trash2, AlertTriangle, ChevronDown, ChevronRight, MapPin, Building2, Server, Hash, Check, FileText } from 'lucide-react';
 import { v4 as uuidv4 } from 'uuid';
 import { validateLocation, getNextMediantHostname, padTo3Digits } from '../utils/ip';
 import { getEspritConfigByNumber } from '../data/espritConfigs';
@@ -93,7 +93,7 @@ export function LocationForm({
     const cpe1: CPEConfig = {
       id: existing0?.id || uuidv4(),
       hostname: 'Mediant 006',
-      serviceType: 'Multicustomer',
+      serviceType: 'Multicustomer - Esprit',
       multicustomerClient: 'Esprit',
       multicustomerVariant: existing0?.multicustomerVariant || 'VOV',
       multicustomerConfigNr: cfg.configNr,
@@ -112,7 +112,7 @@ export function LocationForm({
     const cpe2: CPEConfig = {
       id: existing1?.id || uuidv4(),
       hostname: 'Mediant 007',
-      serviceType: 'Multicustomer',
+      serviceType: 'Multicustomer - Esprit',
       multicustomerClient: 'Esprit',
       multicustomerVariant: existing1?.multicustomerVariant || 'VOV',
       multicustomerConfigNr: cfg.configNr,
@@ -184,7 +184,8 @@ export function LocationForm({
   };
 
   const updateCpe = (cpeId: string, field: keyof CPEConfig, value: any) => {
-    if (field === 'serviceType' && value === 'Multicustomer') {
+    const isMultiVal = value === 'Multicustomer' || value === 'Multicustomer - Esprit' || String(value).startsWith('Multicustomer');
+    if (field === 'serviceType' && isMultiVal) {
       const currentClient = location.cpes.find(c => c.id === cpeId)?.multicustomerClient || 'Esprit';
       if (currentClient === 'Esprit') {
         handleSelectEspritClient('001');
@@ -199,7 +200,7 @@ export function LocationForm({
       if (cpe.id === cpeId) {
         const updated = { ...cpe, [field]: finalValue };
         if (field === 'serviceType') {
-          if (value === 'Multicustomer') {
+          if (isMultiVal) {
             updated.isMulticustomer = true;
             updated.multicustomerVariant = updated.multicustomerVariant || 'VOV';
             updated.multicustomerClient = updated.multicustomerClient || 'Esprit';
@@ -293,7 +294,7 @@ export function LocationForm({
     "255.255.0.0 (/16)",
   ];
 
-  const SERVICE_TYPES: ServiceType[] = ['VOV', 'CN', 'VOV + CN', 'Multicustomer'];
+  const SERVICE_TYPES: ServiceType[] = ['VOV', 'CN', 'VOV & CN', 'Multicustomer - Esprit'];
 
   const inputClass = `w-full border rounded px-3 py-1.5 text-sm focus:ring-1 focus:ring-blue-500 font-mono transition-colors ${
     darkMode 
@@ -306,7 +307,7 @@ export function LocationForm({
   }`;
 
   const warnings = validateLocation(location);
-  const isMultiLocation = location.isMulticustomer || (location.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.isMulticustomer);
+  const isMultiLocation = location.isMulticustomer || (location.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType?.startsWith('Multicustomer') || c.isMulticustomer);
 
   // MULTICUSTOMER: Slechts 3 velden uitvragen (Klant, Projectnummer, Config nr./SRD)
   if (isMultiLocation) {
@@ -540,7 +541,7 @@ export function LocationForm({
 
       {/* CPE's Section */}
       {(() => {
-        const isMultiLocation = location.isMulticustomer || (location.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.isMulticustomer);
+        const isMultiLocation = location.isMulticustomer || (location.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType?.startsWith('Multicustomer') || c.isMulticustomer);
 
         return (
           <div className="space-y-2 pt-1">
@@ -638,7 +639,34 @@ export function LocationForm({
                       </select>
                     </div>
 
-                    {cpe.serviceType === 'Multicustomer' && (
+                    {/* Intake Scenario Informatie bij Zelf Samengestelde Dienst */}
+                    {(() => {
+                      const currentSvcDef = findServiceDefinition(cpe.serviceType);
+                      if (currentSvcDef && !currentSvcDef.isBuiltIn && currentSvcDef.intakeScenario) {
+                        const techQCount = currentSvcDef.intakeScenario.questions.filter(q => q.category !== 'general').length;
+                        return (
+                          <div className={`p-2.5 rounded-xl border text-xs flex items-center justify-between transition-colors ${
+                            darkMode ? 'bg-blue-950/30 border-blue-800/50 text-blue-300' : 'bg-blue-50/80 border-blue-200 text-blue-800'
+                          }`}>
+                            <div className="flex items-center gap-2">
+                              <FileText className="w-4 h-4 text-blue-500 shrink-0" />
+                              <div className="leading-tight">
+                                <span className="font-bold">Uitvraagscenario actief:</span>
+                                <span className="ml-1 text-[11px] opacity-80">
+                                  {techQCount} IP-vragen gekoppeld aan de elementen van deze telecomdienst.
+                                </span>
+                              </div>
+                            </div>
+                            <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-700 dark:text-blue-300 font-bold shrink-0">
+                              {techQCount} IP velden
+                            </span>
+                          </div>
+                        );
+                      }
+                      return null;
+                    })()}
+
+                    {(cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType?.startsWith('Multicustomer')) && (
                       <div className={`p-3.5 rounded-xl border space-y-3 transition-colors ${
                         darkMode ? 'bg-indigo-950/40 border-indigo-700/60' : 'bg-indigo-50/80 border-indigo-200'
                       }`}>
@@ -656,7 +684,7 @@ export function LocationForm({
                           </span>
                         </div>
 
-                        {/* Omgevingstype variant: VOV of VOV + CN */}
+                        {/* Omgevingstype variant: VOV of VOV & CN */}
                         <div>
                           <label className={labelClass}>
                             {t.multicustomerVariant || 'Omgevingstype'}
@@ -677,16 +705,16 @@ export function LocationForm({
                             </button>
                             <button
                               type="button"
-                              onClick={() => updateCpe(cpe.id, 'multicustomerVariant', 'VOV + CN')}
+                              onClick={() => updateCpe(cpe.id, 'multicustomerVariant', 'VOV & CN')}
                               className={`py-1.5 px-3 rounded-lg text-xs font-bold border transition-all cursor-pointer ${
-                                cpe.multicustomerVariant === 'VOV + CN'
+                                cpe.multicustomerVariant === 'VOV & CN' || cpe.multicustomerVariant === 'VOV + CN'
                                   ? 'bg-blue-600 text-white border-blue-600 shadow-xs'
                                   : darkMode
                                     ? 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                                     : 'bg-white text-slate-700 border-slate-300 hover:bg-slate-50'
                               }`}
                             >
-                              VOV + CN
+                              VOV & CN
                             </button>
                           </div>
                         </div>
@@ -841,9 +869,9 @@ export function LocationForm({
                           />
                         </div>
 
-                        {/* Alleen tonen bij combi met CN (bijv. VOV + CN, of Multicustomer met VOV + CN) */}
+                        {/* Alleen tonen bij combi met CN (bijv. VOV & CN, of Multicustomer met VOV & CN) */}
                         {((cpe.serviceType && cpe.serviceType.includes('CN')) || 
-                          (cpe.serviceType === 'Multicustomer' && cpe.multicustomerVariant === 'VOV + CN')) && (
+                          ((cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType?.startsWith('Multicustomer')) && (cpe.multicustomerVariant === 'VOV & CN' || cpe.multicustomerVariant === 'VOV + CN'))) && (
                           <div className={`p-3 rounded-lg border space-y-2 mt-2 transition-colors ${
                             darkMode ? 'bg-blue-950/30 border-blue-800/60' : 'bg-blue-50/70 border-blue-200'
                           }`}>
@@ -931,7 +959,7 @@ export function LocationForm({
     );
   })()}
 
-      {!location.isMulticustomer && !(location.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.isMulticustomer) && onAddLocation && (
+      {!location.isMulticustomer && !(location.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType?.startsWith('Multicustomer') || c.isMulticustomer) && onAddLocation && (
         <div className="pt-2 pb-4">
           <button
             type="button"

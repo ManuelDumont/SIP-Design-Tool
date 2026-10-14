@@ -112,6 +112,7 @@ export function UserGuideModal({ isOpen, onClose, language, darkMode = false }: 
                 <span className="bg-blue-100/80 dark:bg-blue-900/50 px-2 py-0.5 rounded-md">Connectoren bewegen mee</span>
                 <span className="bg-blue-100/80 dark:bg-blue-900/50 px-2 py-0.5 rounded-md">Scrollwiel = In-/Uitzoomen</span>
                 <span className="bg-blue-100/80 dark:bg-blue-900/50 px-2 py-0.5 rounded-md">DEL = Wissen</span>
+                <span className="bg-emerald-100/90 dark:bg-emerald-950/70 text-emerald-700 dark:text-emerald-300 px-2 py-0.5 rounded-md font-bold">📋 Automatisch Uitvraagscenario per element</span>
               </div>
             </div>
 

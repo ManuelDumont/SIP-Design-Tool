@@ -8,9 +8,12 @@ export interface PBX {
 export type ServiceType = 
   | 'VOV' 
   | 'CN' 
+  | 'VOV & CN'
   | 'VOV + CN' 
+  | 'Multicustomer - Esprit'
   | 'Multicustomer' 
   | 'Multicustomer VOV' 
+  | 'Multicustomer VOV & CN' 
   | 'Multicustomer VOV + CN' 
   | (string & {});
 
@@ -40,6 +43,41 @@ export interface BuilderElement {
   fontSize?: 'xs' | 'sm' | 'base' | 'lg';
   textAlign?: 'left' | 'center' | 'right';
   badgeStyle?: 'transparent' | 'card' | 'badge-blue' | 'badge-gray' | 'badge-yellow' | 'badge-red' | 'badge-green';
+  // IP-uitvraag configuratie voor dit element
+  requiresIp?: boolean;
+  ipFieldsConfig?: {
+    wanIp?: boolean;
+    lanIp?: boolean;
+    gateway?: boolean;
+    subnet?: boolean;
+    pbxIp?: boolean;
+    firewallIp?: boolean;
+    cnWanIp?: boolean;
+    cnLanIp?: boolean;
+  };
+}
+
+export interface IntakeQuestion {
+  id: string;
+  elementId?: string;
+  elementName: string;
+  elementType?: string;
+  fieldKey: string;
+  label: string;
+  placeholder?: string;
+  type: 'text' | 'ip' | 'subnet' | 'gateway' | 'number';
+  category: 'general' | 'network' | 'endpoint' | 'security';
+  required: boolean;
+  description?: string;
+  defaultVal?: string;
+}
+
+export interface IntakeScenario {
+  alwaysIncludeGeneral: boolean; // Klantnaam, Projectnummer, Locatie(s)
+  customerNameRequired: boolean;
+  projectNumberRequired: boolean;
+  locationsRequired: boolean;
+  questions: IntakeQuestion[];
 }
 
 export interface CustomServiceDefinition {
@@ -67,6 +105,7 @@ export interface CustomServiceDefinition {
   isBuiltIn?: boolean;
   layoutOffsets?: Record<string, { x: number; y: number }>;
   builderElements?: BuilderElement[];
+  intakeScenario?: IntakeScenario;
 }
 
 export type MulticustomerClient = 'Esprit' | 'IP Voice Group Services BV' | 'PCC Omnia' | 'TSG' | '';
@@ -84,10 +123,11 @@ export interface CPEConfig {
   pbxs: PBX[];
   isMulticustomer?: boolean;
   multicustomerClient?: MulticustomerClient;
-  multicustomerVariant?: 'VOV' | 'VOV + CN';
+  multicustomerVariant?: 'VOV' | 'VOV & CN' | 'VOV + CN';
   multicustomerConfigNr?: string;
   multicustomerTrunkId?: string;
   multicustomerCpeCount?: 1 | 2;
+  customIpValues?: Record<string, string>;
 }
 
 export interface LocationConfig {
@@ -98,7 +138,7 @@ export interface LocationConfig {
   cpes: CPEConfig[];
   isMulticustomer?: boolean;
   multicustomerClient?: MulticustomerClient;
-  multicustomerVariant?: 'VOV' | 'VOV + CN';
+  multicustomerVariant?: 'VOV' | 'VOV & CN' | 'VOV + CN';
   multicustomerConfigNr?: string;
   multicustomerTrunkId?: string;
   multicustomerCpeCount?: 1 | 2;

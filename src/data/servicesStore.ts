@@ -3,7 +3,7 @@ import { CustomServiceDefinition } from '../types';
 export const BUILT_IN_SERVICES: CustomServiceDefinition[] = [
   {
     id: 'builtin-vov',
-    name: 'Voice over Virtual IP',
+    name: 'VOV',
     code: 'VOV',
     description: 'Standaard SIP Voice dienst over dedicated Voice WAN & LAN met lokale PBX.',
     cpeCount: 1,
@@ -27,7 +27,7 @@ export const BUILT_IN_SERVICES: CustomServiceDefinition[] = [
   },
   {
     id: 'builtin-cn',
-    name: 'Corporate Network Only',
+    name: 'CN',
     code: 'CN',
     description: 'Dataverbinding over Corporate Network (CN WAN & CN LAN) zonder voice.',
     cpeCount: 1,
@@ -51,8 +51,8 @@ export const BUILT_IN_SERVICES: CustomServiceDefinition[] = [
   },
   {
     id: 'builtin-vov-cn',
-    name: 'Voice + Corporate Network',
-    code: 'VOV + CN',
+    name: 'VOV & CN',
+    code: 'VOV & CN',
     description: 'Gecombineerde Voice en Corporate Network interfaces met ruime positionering.',
     cpeCount: 1,
     hostnamePrefix: 'Mediant',
@@ -75,8 +75,8 @@ export const BUILT_IN_SERVICES: CustomServiceDefinition[] = [
   },
   {
     id: 'builtin-multicustomer',
-    name: 'Esprit Multicustomer (N2G)',
-    code: 'Multicustomer',
+    name: 'Multicustomer - Esprit',
+    code: 'Multicustomer - Esprit',
     description: 'Redundante Mediant 006 & 007, 2 Customer LAN wolken, Firewall met PBX IP zonder connectoren en Config Nr. / SRD mapping.',
     cpeCount: 2,
     hostnamePrefix: 'Mediant 006',
@@ -150,5 +150,14 @@ export function getAllServices(): CustomServiceDefinition[] {
 export function findServiceDefinition(codeOrName: string): CustomServiceDefinition | undefined {
   if (!codeOrName) return undefined;
   const all = getAllServices();
-  return all.find(s => s.code === codeOrName || s.name === codeOrName || s.id === codeOrName);
+  const direct = all.find(s => s.code === codeOrName || s.name === codeOrName || s.id === codeOrName);
+  if (direct) return direct;
+  // Aliases voor compatibiliteit met eerdere opgeslagen ontwerpen
+  if (codeOrName === 'VOV + CN') {
+    return all.find(s => s.code === 'VOV & CN');
+  }
+  if (codeOrName === 'Multicustomer' || codeOrName.startsWith('Multicustomer')) {
+    return all.find(s => s.code === 'Multicustomer - Esprit');
+  }
+  return undefined;
 }
