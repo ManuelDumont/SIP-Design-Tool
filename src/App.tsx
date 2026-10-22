@@ -13,10 +13,20 @@ import { ServiceBuilderModal } from './components/ServiceBuilderModal';
 import { Language, translations } from './i18n/translations';
 import { getNextMediantHostname } from './utils/ip';
 import { v4 as uuidv4 } from 'uuid';
-import { Sun, Moon, Plus, Building2, MapPin, ArrowRight, FileText, Trash2, Edit2, FolderOpen, Download, Hash, BookOpen, Save, ChevronDown, Folder, Settings, Check, Sliders } from 'lucide-react';
+import { Sun, Moon, Plus, Building2, MapPin, ArrowRight, FileText, Trash2, Edit2, FolderOpen, Download, Hash, BookOpen, Save, ChevronDown, Folder, Settings, Check, Sliders, Layers, Sparkles } from 'lucide-react';
+import { getAllServices, getVoiceServices, getDataServices, findServiceDefinition } from './data/servicesStore';
+import { getEspritConfigByNumber } from './data/espritConfigs';
 
-const createBlankLocation = (custName: string, locName: string, currentLocations: LocationConfig[] = []): LocationConfig => {
-  const nextHostname = getNextMediantHostname(currentLocations);
+const createBlankLocation = (
+  custName: string, 
+  locName: string, 
+  currentLocations: LocationConfig[] = [],
+  initialServiceType = ''
+): LocationConfig => {
+  const isDataSvc = initialServiceType ? findServiceDefinition(initialServiceType)?.category === 'data' : false;
+  const nextHostname = isDataSvc 
+    ? `ROUTER-${(currentLocations.length + 1).toString().padStart(2, '0')}`
+    : getNextMediantHostname(currentLocations);
   return {
     id: uuidv4(),
     customerName: custName,
@@ -26,16 +36,66 @@ const createBlankLocation = (custName: string, locName: string, currentLocations
       {
         id: uuidv4(),
         hostname: nextHostname,
-        serviceType: '', // Default leeg laten zoals verzocht
+        serviceType: initialServiceType,
         wanIp: '',
         lanIpCpe: '',
         lanSubnet: '255.255.255.0 (/24)',
         defaultGateway: '',
         cnWanIp: '',
         cnLanIp: '',
-        pbxs: [{ id: uuidv4(), ip: '' }]
+        pbxs: isDataSvc ? [] : [{ id: uuidv4(), ip: '' }]
       }
     ]
+  };
+};
+
+const createEspritLocation = (
+  custName: string,
+  configNr = '001'
+): LocationConfig => {
+  const cfg = getEspritConfigByNumber(configNr);
+  const cpe1 = {
+    id: uuidv4(),
+    hostname: 'Mediant 006',
+    serviceType: 'Multicustomer - Esprit' as const,
+    multicustomerClient: 'Esprit' as const,
+    multicustomerVariant: 'VOV' as const,
+    multicustomerConfigNr: cfg.configNr,
+    wanIp: cfg.mediant006.wanIp,
+    lanIpCpe: cfg.mediant006.lanIp,
+    lanSubnet: '255.255.252.0 (/22)',
+    defaultGateway: cfg.sipLanIpGw,
+    pbxs: [{
+      id: uuidv4(),
+      name: 'SIP PBX',
+      ip: cfg.primaryPbxIp,
+      brand: 'Overig'
+    }]
+  };
+
+  const cpe2 = {
+    id: uuidv4(),
+    hostname: 'Mediant 007',
+    serviceType: 'Multicustomer - Esprit' as const,
+    multicustomerClient: 'Esprit' as const,
+    multicustomerVariant: 'VOV' as const,
+    multicustomerConfigNr: cfg.configNr,
+    wanIp: cfg.mediant007.wanIp,
+    lanIpCpe: cfg.mediant007.lanIp,
+    lanSubnet: '255.255.252.0 (/22)',
+    defaultGateway: cfg.sipLanIpGw,
+    pbxs: []
+  };
+
+  return {
+    id: uuidv4(),
+    customerName: custName,
+    locationName: '',
+    showDemarcationLine: false,
+    isMulticustomer: true,
+    multicustomerClient: 'Esprit',
+    multicustomerConfigNr: cfg.configNr,
+    cpes: [cpe1, cpe2]
   };
 };
 
@@ -107,6 +167,15 @@ export default function App() {
     };
   }, [isFileMenuOpen, isSettingsMenuOpen]);
 
+  // Diensttype keuze bij opstarten (eerst vragen naar de dienst die gebouwd moet worden)
+  const [selectedServiceCode, setSelectedServiceCode] = useState<string>('');
+  const [startupCategory, setStartupCategory] = useState<'voice' | 'data'>('voice');
+  const [serviceBuilderCategory, setServiceBuilderCategory] = useState<'voice' | 'data'>('voice');
+
+  const selectedServiceDef = React.useMemo(() => {
+    return findServiceDefinition(selectedServiceCode);
+  }, [selectedServiceCode, servicesVersion]);
+
   // Klantnaam en Projectnummer (standaard leeg)
   const [customerName, setCustomerName] = useState<string>('');
   const [inputCustomer, setInputCustomer] = useState<string>('');
@@ -149,6 +218,19 @@ export default function App() {
     setLocations(prev => prev.map(loc => ({ ...loc, customerName: trimmed })));
   };
 
+  const isEspritService = selectedServiceCode === 'Multicustomer Esprit' || 
+                          selectedServiceCode === 'Multicustomer - Esprit' || 
+                          selectedServiceCode.startsWith('Multicustomer');
+
+  // Voor Multicustomer Esprit: nooit om locatie vragen; direct initialiseren zodra klantnaam en projectnummer ingevuld/overgeslagen zijn
+  useEffect(() => {
+    if (isEspritService && customerName && hasAskedProject && locations.length === 0) {
+      const espritLoc = createEspritLocation(customerName, '001');
+      setLocations([espritLoc]);
+      setActiveLocationId(espritLoc.id);
+    }
+  }, [isEspritService, customerName, hasAskedProject, locations.length]);
+
   // Stap 2: Projectnummer opslaan (altijd exact 8 tekens/digits, letters altijd als hoofdletters)
   const handleConfirmProject = (e?: React.FormEvent) => {
     if (e) e.preventDefault();
@@ -156,6 +238,11 @@ export default function App() {
     if (cleaned.length !== 8) return;
     setProjectNumber(cleaned);
     setHasAskedProject(true);
+    if (isEspritService && locations.length === 0) {
+      const espritLoc = createEspritLocation(customerName, '001');
+      setLocations([espritLoc]);
+      setActiveLocationId(espritLoc.id);
+    }
   };
 
   // Opslaan bij bewerken van zowel klant als projectnummer
@@ -170,12 +257,18 @@ export default function App() {
     setProjectNumber(cleanedProj);
     setHasAskedProject(true);
     setIsEditingCustomer(false);
-    setLocations(prev => prev.map(loc => ({ ...loc, customerName: trimmedCust })));
+    if (isEspritService && locations.length === 0) {
+      const espritLoc = createEspritLocation(trimmedCust, '001');
+      setLocations([espritLoc]);
+      setActiveLocationId(espritLoc.id);
+    } else {
+      setLocations(prev => prev.map(loc => ({ ...loc, customerName: trimmedCust })));
+    }
   };
 
   // Direct een nieuwe locatie toevoegen
   const handleAddNewLocationDirect = (name: string = '') => {
-    const newLoc = createBlankLocation(customerName, name, locations);
+    const newLoc = createBlankLocation(customerName, name, locations, selectedServiceCode);
     setLocations([...locations, newLoc]);
     setActiveLocationId(newLoc.id);
     setShowAddLocationInput(false);
@@ -277,6 +370,8 @@ export default function App() {
         setLocations(loadedLocations);
         if (loadedLocations.length > 0) {
           setActiveLocationId(loadedLocations[0].id);
+          const firstSvc = loadedLocations[0].cpes?.[0]?.serviceType;
+          if (firstSvc) setSelectedServiceCode(firstSvc);
         } else {
           setActiveLocationId(null);
         }
@@ -359,6 +454,7 @@ export default function App() {
 
   // Reset naar leeg beginpunt
   const handleResetToBlank = () => {
+    setSelectedServiceCode('');
     setCustomerName('');
     setInputCustomer('');
     setProjectNumber('');
@@ -530,7 +626,7 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Diensten Bouwer (Service Builder) */}
+                  {/* Templates (Service Builder) */}
                   <div className="mb-2">
                     <button
                       onClick={() => {
@@ -549,13 +645,13 @@ export default function App() {
                         </div>
                         <div className="text-left">
                           <div className="font-bold flex items-center gap-1.5 leading-tight">
-                            <span>{t.serviceBuilder || 'Diensten Bouwer'}</span>
+                            <span>{t.serviceBuilder || 'Templates'}</span>
                             <span className="text-[9px] font-black uppercase tracking-wider px-1.5 py-0.2 rounded-full bg-blue-600 text-white leading-none">
                               Nieuw
                             </span>
                           </div>
                           <div className="text-[10px] text-slate-500 dark:text-slate-400 font-normal leading-tight mt-0.5">
-                            Configs &amp; onderdelen kiezen
+                            Templates &amp; onderdelen beheren
                           </div>
                         </div>
                       </div>
@@ -674,9 +770,136 @@ export default function App() {
             darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}>
             
-            {/* STAP 1: Vraag Klantnaam als nog niet ingevuld */}
-            {!customerName ? (
+            {/* STAP 0: Vraag eerst naar de dienst die gebouwd moet worden (Voice of Data) */}
+            {!selectedServiceCode && locations.length === 0 ? (
+              <div className="p-5 flex flex-col h-full overflow-hidden">
+                <div className="flex items-center gap-2 mb-2 shrink-0">
+                  <div className="w-8 h-8 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-md shrink-0">
+                    <Layers className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h2 className={`text-sm font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+                      Kies de gewenste dienst
+                    </h2>
+                    <p className={`text-[11px] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Selecteer een Voice of Data dienst om te ontwerpen
+                    </p>
+                  </div>
+                </div>
+
+                {/* Keuze tussen Voice of Data diensten */}
+                <div className={`p-1 rounded-xl border grid grid-cols-2 gap-1 text-xs font-bold my-2 shrink-0 ${
+                  darkMode ? 'bg-slate-800/80 border-slate-700' : 'bg-slate-100 border-slate-200'
+                }`}>
+                  <button
+                    type="button"
+                    onClick={() => setStartupCategory('voice')}
+                    className={`py-2 px-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      startupCategory === 'voice'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <span>🎙️ Voice Diensten</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${startupCategory === 'voice' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                      {getVoiceServices().length}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setStartupCategory('data')}
+                    className={`py-2 px-2.5 rounded-lg flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                      startupCategory === 'data'
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    }`}
+                  >
+                    <span>🌐 Data Diensten</span>
+                    <span className={`text-[10px] px-1.5 py-0.2 rounded-full font-mono ${startupCategory === 'data' ? 'bg-white/20 text-white' : 'bg-slate-200 dark:bg-slate-700'}`}>
+                      {getDataServices().length}
+                    </span>
+                  </button>
+                </div>
+
+                {/* Lijst met beschikbare diensten van de gekozen categorie */}
+                <div className="space-y-2 flex-1 overflow-y-auto pr-0.5">
+                  {(() => {
+                    const services = startupCategory === 'voice' ? getVoiceServices() : getDataServices();
+                    if (services.length === 0) {
+                      return (
+                        <div className={`p-8 rounded-xl border border-dashed text-center flex flex-col items-center justify-center ${
+                          darkMode ? 'border-slate-800 bg-slate-850/40 text-slate-400' : 'border-slate-200 bg-slate-50/60 text-slate-500'
+                        }`}>
+                          <p className="text-xs font-semibold">Nog geen templates beschikbaar</p>
+                          <p className="text-[11px] text-slate-400 mt-1 max-w-[280px]">
+                            Er zijn momenteel nog geen templates gemaakt voor {startupCategory === 'data' ? 'data diensten' : 'voice diensten'}. U kunt deze ontwerpen in de Template Studio.
+                          </p>
+                        </div>
+                      );
+                    }
+                    return services.map(svc => (
+                      <button
+                        key={svc.id}
+                        type="button"
+                        onClick={() => {
+                          setSelectedServiceCode(svc.code);
+                        }}
+                        className={`w-full text-left px-3 py-2.5 rounded-xl border transition-all cursor-pointer group hover:scale-[1.01] hover:border-blue-500 ${
+                          darkMode 
+                            ? 'bg-slate-800/60 hover:bg-slate-800 border-slate-700/80 text-slate-200' 
+                            : 'bg-white hover:bg-blue-50/40 border-slate-200 shadow-2xs'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <div className="flex items-center gap-2 min-w-0">
+                            <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 shrink-0">
+                              {svc.code}
+                            </span>
+                            {svc.name && svc.name !== svc.code && (
+                              <span className={`text-xs font-bold truncate ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+                                {svc.name}
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {!svc.isBuiltIn && (
+                              <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/60 px-1.5 py-0.2 rounded">
+                                Eigen template
+                              </span>
+                            )}
+                            <ArrowRight className="w-3.5 h-3.5 text-slate-400 group-hover:text-blue-500 transition-colors" />
+                          </div>
+                        </div>
+                      </button>
+                    ));
+                  })()}
+                </div>
+              </div>
+            ) : !customerName ? (
+              /* STAP 1: Vraag Klantnaam als nog niet ingevuld */
               <div className="p-6 flex flex-col justify-start">
+                {/* Gekozen Dienst Badge met Wijzigknop */}
+                {selectedServiceCode && (
+                  <div className={`p-2.5 rounded-xl border mb-4 flex items-center justify-between ${
+                    darkMode ? 'bg-slate-850 border-slate-800' : 'bg-slate-50 border-slate-200'
+                  }`}>
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Gekozen Dienst:</span>
+                      <span className="text-xs font-bold text-blue-600 dark:text-blue-400 truncate">
+                        {selectedServiceDef ? `${selectedServiceDef.code} (${selectedServiceDef.category === 'data' ? '🌐 Data' : '🎙️ Voice'})` : selectedServiceCode}
+                      </span>
+                    </div>
+                    <button 
+                      type="button" 
+                      onClick={() => setSelectedServiceCode('')} 
+                      className="text-[11px] text-blue-500 hover:underline font-semibold shrink-0 cursor-pointer"
+                    >
+                      Wijzigen
+                    </button>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2 mb-3">
                   <Building2 className={`w-5 h-5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
                   <h2 className={`text-base font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>{t.customer}</h2>
@@ -793,6 +1016,11 @@ export default function App() {
                         setProjectNumber('');
                         setInputProjectNumber('');
                         setHasAskedProject(true);
+                        if (isEspritService && locations.length === 0) {
+                          const espritLoc = createEspritLocation(customerName, '001');
+                          setLocations([espritLoc]);
+                          setActiveLocationId(espritLoc.id);
+                        }
                       }}
                       className={`px-3 py-2.5 rounded-lg text-xs font-semibold border transition-colors ${
                         darkMode ? 'border-slate-700 text-slate-400 hover:bg-slate-800' : 'border-slate-200 text-slate-500 hover:bg-slate-100'
@@ -869,8 +1097,8 @@ export default function App() {
                   </div>
                 </form>
               </div>
-            ) : locations.length === 0 ? (
-              /* ZODRA KLANT & PROJECTNUMMER ZIJN INGEVULD EN BEVESTIGD: Vragen om locatie(s) */
+            ) : (locations.length === 0 && !isEspritService) ? (
+              /* ZODRA KLANT & PROJECTNUMMER ZIJN INGEVULD EN BEVESTIGD: Vragen om locatie(s) (nooit bij Multicustomer Esprit) */
               <div className="p-6 flex flex-col h-full overflow-y-auto">
                 {/* Klant en projectnummer weergave met wijzigknop */}
                 <div className={`p-3 rounded-xl border mb-6 flex items-center justify-between transition-colors ${
@@ -1157,11 +1385,12 @@ export default function App() {
           darkMode={darkMode}
         />
 
-        {/* Diensten Bouwer / Service Builder Modal */}
+        {/* Templates Modal */}
         <ServiceBuilderModal 
           isOpen={isServiceBuilderOpen}
           onClose={() => setIsServiceBuilderOpen(false)}
           darkMode={darkMode}
+          initialCategory={serviceBuilderCategory}
           onServicesUpdated={() => {
             setServicesVersion(v => v + 1);
           }}

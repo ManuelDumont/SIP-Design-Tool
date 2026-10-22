@@ -4,7 +4,7 @@ import { Plus, Trash2, AlertTriangle, ChevronDown, ChevronRight, MapPin, Buildin
 import { v4 as uuidv4 } from 'uuid';
 import { validateLocation, getNextMediantHostname, padTo3Digits } from '../utils/ip';
 import { getEspritConfigByNumber } from '../data/espritConfigs';
-import { getAllServices, findServiceDefinition } from '../data/servicesStore';
+import { getAllServices, getVoiceServices, getDataServices, findServiceDefinition } from '../data/servicesStore';
 import { Language, translations } from '../i18n/translations';
 
 interface Props {
@@ -163,10 +163,11 @@ export function LocationForm({
   };
 
   const handleConfigInputChange = (val: string) => {
-    setConfigInputVal(val);
-    const match = val.match(/\d+/);
-    if (match) {
-      const nr = parseInt(match[0], 10);
+    // Alleen cijfers (ook SRD's zijn gewoon cijfers)
+    const digitsOnly = val.replace(/\D/g, '').slice(0, 3);
+    setConfigInputVal(digitsOnly);
+    if (digitsOnly) {
+      const nr = parseInt(digitsOnly, 10);
       if (nr >= 1 && nr <= 125) {
         handleEspritConfigNrChange(String(nr));
       }
@@ -174,12 +175,11 @@ export function LocationForm({
   };
 
   const handleConfigInputBlur = () => {
-    const match = configInputVal.match(/\d+/);
-    const nr = match ? parseInt(match[0], 10) : 1;
+    const digitsOnly = configInputVal.replace(/\D/g, '');
+    const nr = digitsOnly ? parseInt(digitsOnly, 10) : 1;
     const clamped = Math.max(1, Math.min(125, isNaN(nr) ? 1 : nr));
     const pad = String(clamped).padStart(3, '0');
-    const display = configInputVal.toUpperCase().startsWith('SRD') ? `SRD${pad}` : pad;
-    setConfigInputVal(display);
+    setConfigInputVal(pad);
     handleEspritConfigNrChange(pad);
   };
 
@@ -294,7 +294,7 @@ export function LocationForm({
     "255.255.0.0 (/16)",
   ];
 
-  const SERVICE_TYPES: ServiceType[] = ['VOV', 'CN', 'VOV & CN', 'Multicustomer - Esprit'];
+  const SERVICE_TYPES: ServiceType[] = ['VOV', 'CN', 'VOV+CN', 'Multicustomer Esprit'];
 
   const inputClass = `w-full border rounded px-3 py-1.5 text-sm focus:ring-1 focus:ring-blue-500 font-mono transition-colors ${
     darkMode 
@@ -368,7 +368,7 @@ export function LocationForm({
           />
         </div>
 
-        {/* 3. Config nr. / SRD */}
+        {/* 3. config nr. / SRD */}
         <div className={`p-3.5 rounded-xl border space-y-2.5 transition-colors ${
           darkMode ? 'bg-blue-950/30 border-blue-800/60' : 'bg-blue-50/70 border-blue-200'
         }`}>
@@ -376,14 +376,15 @@ export function LocationForm({
             darkMode ? 'text-blue-300' : 'text-blue-900'
           }`}>
             <Server className="w-3.5 h-3.5 text-blue-600" />
-            3. Config nr. / SRD (1-125)
+            3. config nr. / SRD
           </label>
-          <div className="flex items-center gap-2">
+          <div>
             <input
               type="text"
+              inputMode="numeric"
               className={`${inputClass} font-bold font-mono text-base text-blue-600 dark:text-blue-400`}
-              placeholder="001 of SRD001"
-              maxLength={7}
+              placeholder="001"
+              maxLength={3}
               value={configInputVal}
               onChange={(e) => handleConfigInputChange(e.target.value)}
               onBlur={handleConfigInputBlur}
@@ -391,47 +392,9 @@ export function LocationForm({
                 if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
               }}
             />
-            <div className="flex flex-col gap-1 shrink-0">
-              <button
-                type="button"
-                title="Volgende configuratie (+1)"
-                onClick={() => {
-                  const match = configInputVal.match(/\d+/);
-                  const cur = match ? parseInt(match[0], 10) : 1;
-                  const next = Math.min(125, cur + 1);
-                  const pad = String(next).padStart(3, '0');
-                  const display = configInputVal.toUpperCase().startsWith('SRD') ? `SRD${pad}` : pad;
-                  setConfigInputVal(display);
-                  handleEspritConfigNrChange(pad);
-                }}
-                className={`px-2 py-0.5 rounded text-xs font-bold border transition-colors cursor-pointer ${
-                  darkMode ? 'bg-slate-800 hover:bg-slate-700 border-slate-700' : 'bg-white hover:bg-slate-100 border-slate-300'
-                }`}
-              >
-                ▲
-              </button>
-              <button
-                type="button"
-                title="Vorige configuratie (-1)"
-                onClick={() => {
-                  const match = configInputVal.match(/\d+/);
-                  const cur = match ? parseInt(match[0], 10) : 1;
-                  const prev = Math.max(1, cur - 1);
-                  const pad = String(prev).padStart(3, '0');
-                  const display = configInputVal.toUpperCase().startsWith('SRD') ? `SRD${pad}` : pad;
-                  setConfigInputVal(display);
-                  handleEspritConfigNrChange(pad);
-                }}
-                className={`px-2 py-0.5 rounded text-xs font-bold border transition-colors cursor-pointer ${
-                  darkMode ? 'bg-slate-800 hover:bg-slate-700 border-slate-700' : 'bg-white hover:bg-slate-100 border-slate-300'
-                }`}
-              >
-                ▼
-              </button>
-            </div>
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400">
-            Vul een confignummer (1 - 125, bijv. <strong className="text-blue-600 font-bold">002</strong>) of SRD-code (bijv. <strong className="text-blue-600 font-bold">SRD002</strong>) in. Alle IP-adressen worden direct overgenomen.
+            Vul een configuratie- of SRD-nummer in (1 - 125, bijv. <strong className="text-blue-600 font-bold">001</strong> of <strong className="text-blue-600 font-bold">002</strong>). Alle IP-adressen worden direct overgenomen.
           </p>
         </div>
       </div>
@@ -631,11 +594,22 @@ export function LocationForm({
                         onChange={(e) => updateCpe(cpe.id, 'serviceType', e.target.value as ServiceType)}
                       >
                         <option value="">-- {t.serviceType} --</option>
-                        {getAllServices().map(svc => (
-                          <option key={svc.id} value={svc.code}>
-                            {svc.code} {svc.name && svc.name !== svc.code ? `- ${svc.name}` : ''} {!svc.isBuiltIn ? '(Eigen dienst)' : ''}
-                          </option>
-                        ))}
+                        <optgroup label="🎙️ Voice Diensten">
+                          {getVoiceServices().map(svc => (
+                            <option key={svc.id} value={svc.code}>
+                              {svc.code} {!svc.isBuiltIn ? '(Eigen template)' : ''}
+                            </option>
+                          ))}
+                        </optgroup>
+                        {getDataServices().length > 0 && (
+                          <optgroup label="🌐 Data Diensten">
+                            {getDataServices().map(svc => (
+                              <option key={svc.id} value={svc.code}>
+                                {svc.code} {svc.name && svc.name !== svc.code ? `- ${svc.name}` : ''} {!svc.isBuiltIn ? '(Eigen template)' : ''}
+                              </option>
+                            ))}
+                          </optgroup>
+                        )}
                       </select>
                     </div>
 
@@ -880,7 +854,7 @@ export function LocationForm({
                               <h4 className={`text-xs font-bold uppercase tracking-wider ${
                                 darkMode ? 'text-blue-300' : 'text-blue-900'
                               }`}>
-                                Corporate Network (CN) IP
+                                CN IP
                               </h4>
                             </div>
                             <div className="grid grid-cols-2 gap-2">

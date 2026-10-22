@@ -1,11 +1,13 @@
 import { CustomServiceDefinition } from '../types';
 
 export const BUILT_IN_SERVICES: CustomServiceDefinition[] = [
+  // --- VOICE DIENSTEN ---
   {
     id: 'builtin-vov',
     name: 'VOV',
     code: 'VOV',
-    description: 'Standaard SIP Voice dienst over dedicated Voice WAN & LAN met lokale PBX.',
+    category: 'voice',
+    description: '',
     cpeCount: 1,
     hostnamePrefix: 'Mediant',
     hasWan: true,
@@ -29,9 +31,10 @@ export const BUILT_IN_SERVICES: CustomServiceDefinition[] = [
     id: 'builtin-cn',
     name: 'CN',
     code: 'CN',
-    description: 'Dataverbinding over Corporate Network (CN WAN & CN LAN) zonder voice.',
+    category: 'voice',
+    description: '',
     cpeCount: 1,
-    hostnamePrefix: 'Mediant',
+    hostnamePrefix: 'Router',
     hasWan: false,
     hasVoiceLan: false,
     hasCn: true,
@@ -51,9 +54,10 @@ export const BUILT_IN_SERVICES: CustomServiceDefinition[] = [
   },
   {
     id: 'builtin-vov-cn',
-    name: 'VOV & CN',
-    code: 'VOV & CN',
-    description: 'Gecombineerde Voice en Corporate Network interfaces met ruime positionering.',
+    name: 'VOV+CN',
+    code: 'VOV+CN',
+    category: 'voice',
+    description: '',
     cpeCount: 1,
     hostnamePrefix: 'Mediant',
     hasWan: true,
@@ -75,9 +79,10 @@ export const BUILT_IN_SERVICES: CustomServiceDefinition[] = [
   },
   {
     id: 'builtin-multicustomer',
-    name: 'Multicustomer - Esprit',
-    code: 'Multicustomer - Esprit',
-    description: 'Redundante Mediant 006 & 007, 2 Customer LAN wolken, Firewall met PBX IP zonder connectoren en Config Nr. / SRD mapping.',
+    name: 'Multicustomer Esprit',
+    code: 'Multicustomer Esprit',
+    category: 'voice',
+    description: '',
     cpeCount: 2,
     hostnamePrefix: 'Mediant 006',
     hasWan: true,
@@ -147,17 +152,30 @@ export function getAllServices(): CustomServiceDefinition[] {
   return [...BUILT_IN_SERVICES, ...custom];
 }
 
+export function getVoiceServices(): CustomServiceDefinition[] {
+  return getAllServices().filter(s => s.category === 'voice' || s.code === 'CN' || (!s.category && s.code !== 'DIA' && s.code !== 'IP-VPN' && s.code !== 'SD-WAN'));
+}
+
+export function getDataServices(): CustomServiceDefinition[] {
+  // Er zijn nog geen templates gemaakt voor data diensten; Corporate Net is een voice dienst.
+  // Alleen eventuele zelfgemaakte data templates (als die ooit worden aangemaakt) worden getoond.
+  return getAllServices().filter(s => s.category === 'data' && s.code !== 'CN' && s.id !== 'builtin-cn' && s.code !== 'DIA' && s.code !== 'IP-VPN' && s.code !== 'SD-WAN');
+}
+
 export function findServiceDefinition(codeOrName: string): CustomServiceDefinition | undefined {
   if (!codeOrName) return undefined;
   const all = getAllServices();
   const direct = all.find(s => s.code === codeOrName || s.name === codeOrName || s.id === codeOrName);
   if (direct) return direct;
   // Aliases voor compatibiliteit met eerdere opgeslagen ontwerpen
-  if (codeOrName === 'VOV + CN') {
-    return all.find(s => s.code === 'VOV & CN');
+  if (codeOrName === 'VOV + CN' || codeOrName === 'VOV & CN' || codeOrName === 'VOV+CN' || (codeOrName.includes('VOV') && codeOrName.includes('CN'))) {
+    return all.find(s => s.code === 'VOV+CN' || s.code === 'VOV & CN');
   }
-  if (codeOrName === 'Multicustomer' || codeOrName.startsWith('Multicustomer')) {
-    return all.find(s => s.code === 'Multicustomer - Esprit');
+  if (codeOrName === 'Multicustomer' || codeOrName === 'Multicustomer - Esprit' || codeOrName === 'Multicustomer Esprit' || codeOrName.startsWith('Multicustomer')) {
+    return all.find(s => s.code === 'Multicustomer Esprit' || s.code === 'Multicustomer - Esprit');
+  }
+  if (codeOrName === 'Corporate Net' || codeOrName === 'Corporate Net (CN)') {
+    return all.find(s => s.code === 'CN');
   }
   return undefined;
 }

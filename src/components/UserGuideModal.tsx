@@ -92,7 +92,7 @@ export function UserGuideModal({ isOpen, onClose, language, darkMode = false }: 
               </div>
             </div>
 
-            {/* Diensten Bouwstudio (Zelf Diensten Samenstellen) */}
+            {/* Templates (Zelf Telecom-Templates Samenstellen) */}
             <div className={`p-4 rounded-xl border transition-all md:col-span-2 ${
               darkMode ? 'bg-slate-800/80 border-blue-500/40 hover:border-blue-500/70' : 'bg-blue-50/70 border-blue-200 hover:border-blue-400'
             }`}>

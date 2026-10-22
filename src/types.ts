@@ -8,8 +8,10 @@ export interface PBX {
 export type ServiceType = 
   | 'VOV' 
   | 'CN' 
+  | 'VOV+CN'
   | 'VOV & CN'
   | 'VOV + CN' 
+  | 'Multicustomer Esprit'
   | 'Multicustomer - Esprit'
   | 'Multicustomer' 
   | 'Multicustomer VOV' 
@@ -19,7 +21,7 @@ export type ServiceType =
 
 export interface BuilderElement {
   id: string;
-  type: 'router' | 'mediant' | 'cloud' | 'pbx' | 'firewall' | 'phone' | 'connector' | 'text' | 'sbc';
+  type: 'router' | 'mediant' | 'cloud' | 'pbx' | 'firewall' | 'phone' | 'connector' | 'text' | 'sbc' | 'switch' | 'server' | 'workstation' | 'access-point';
   x: number;
   y: number;
   x1?: number;
@@ -39,10 +41,18 @@ export interface BuilderElement {
   customText?: string;
   color?: string;
   lineStyle?: 'solid' | 'dashed' | 'dotted';
+  connectorShape?: 'straight' | 'orthogonal' | 'curved';
   orientation?: 'horizontal' | 'vertical' | 'diagonal-down' | 'diagonal-up';
   fontSize?: 'xs' | 'sm' | 'base' | 'lg';
   textAlign?: 'left' | 'center' | 'right';
   badgeStyle?: 'transparent' | 'card' | 'badge-blue' | 'badge-gray' | 'badge-yellow' | 'badge-red' | 'badge-green';
+  // WAN / LAN IP-adressen en flexibele plaatsing op het canvas
+  wanIp?: string;
+  lanIp?: string;
+  showWanIp?: boolean;
+  showLanIp?: boolean;
+  ipPlacement?: 'auto' | 'left' | 'right';
+  namePlacement?: 'auto' | 'top' | 'bottom' | 'left' | 'right';
   // IP-uitvraag configuratie voor dit element
   requiresIp?: boolean;
   ipFieldsConfig?: {
@@ -84,6 +94,7 @@ export interface CustomServiceDefinition {
   id: string;
   name: string;
   code: string;
+  category?: 'voice' | 'data' | 'both';
   description?: string;
   cpeCount: number;
   hostnamePrefix?: string;

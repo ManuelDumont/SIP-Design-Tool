@@ -1,19 +1,26 @@
 import React from 'react';
 
-// Berekent het exacte aansluitpunt op de rand van een rechthoekige component
+// Berekent het exacte aansluitpunt op de rand van een component (met optionele voorkeurszijde voor haakse en vloeiende connectoren)
 export function getBoxBorderPoint(
   cx: number,
   cy: number,
   w: number,
   h: number,
   fromX: number,
-  fromY: number
+  fromY: number,
+  preferredSide?: 'left' | 'right' | 'top' | 'bottom'
 ): { x: number; y: number } {
+  const halfW = w / 2;
+  const halfH = h / 2;
+
+  if (preferredSide === 'left') return { x: Math.round(cx - halfW), y: Math.round(cy) };
+  if (preferredSide === 'right') return { x: Math.round(cx + halfW), y: Math.round(cy) };
+  if (preferredSide === 'top') return { x: Math.round(cx), y: Math.round(cy - halfH) };
+  if (preferredSide === 'bottom') return { x: Math.round(cx), y: Math.round(cy + halfH) };
+
   const dx = fromX - cx;
   const dy = fromY - cy;
   if (Math.abs(dx) < 1e-4 && Math.abs(dy) < 1e-4) return { x: cx, y: cy };
-  const halfW = w / 2;
-  const halfH = h / 2;
   const scale = Math.min(
     Math.abs(dx) > 0 ? halfW / Math.abs(dx) : Infinity,
     Math.abs(dy) > 0 ? halfH / Math.abs(dy) : Infinity
@@ -221,7 +228,7 @@ export function FirewallSvg({ width = 54, height = 40 }: { width?: number; heigh
   );
 }
 
-// 6. Telefoonhoorn / Desktop Phone SVG
+// 6. Telefoontoestel / Desktop Phone SVG
 export function PhoneSvg({ width = 40, height = 40 }: { width?: number; height?: number }) {
   return (
     <svg width={width} height={height} viewBox="0 0 24 24" className="overflow-visible select-none drop-shadow-md">
@@ -244,3 +251,173 @@ export function PhoneSvg({ width = 40, height = 40 }: { width?: number; height?:
     </svg>
   );
 }
+
+// 7. Network Switch SVG (L2/L3 Core Switch met 4 tegengestelde schakelpijlen)
+export function SwitchSvg({ width = 96, height = 36 }: { width?: number; height?: number }) {
+  return (
+    <svg width={width} height={height} viewBox="0 0 96 36" className="overflow-visible select-none drop-shadow-md">
+      <defs>
+        <linearGradient id="swChassis" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#0369a1" />
+          <stop offset="50%" stopColor="#0284c7" />
+          <stop offset="100%" stopColor="#075985" />
+        </linearGradient>
+        <linearGradient id="swBezel" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stopColor="#38bdf8" />
+          <stop offset="100%" stopColor="#0284c7" />
+        </linearGradient>
+      </defs>
+      {/* 1U Chassis */}
+      <rect x="2" y="3" width="92" height="30" rx="3" fill="url(#swChassis)" stroke="#0c4a6e" strokeWidth="1.5" />
+      <line x1="3" y1="4.5" x2="93" y2="4.5" stroke="url(#swBezel)" strokeWidth="1" strokeOpacity="0.8" />
+      
+      {/* 4 Opposing Network Switch Arrows (Cisco Standard) */}
+      <g stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" fill="none">
+        {/* Pijl 1: Links naar Rechts (boven) */}
+        <line x1="26" y1="12" x2="42" y2="12" />
+        <polyline points="37 9 42 12 37 15" />
+        {/* Pijl 2: Rechts naar Links (boven) */}
+        <line x1="70" y1="12" x2="54" y2="12" />
+        <polyline points="59 9 54 12 59 15" />
+        {/* Pijl 3: Rechts naar Links (onder) */}
+        <line x1="42" y1="20" x2="26" y2="20" />
+        <polyline points="31 17 26 20 31 23" />
+        {/* Pijl 4: Links naar Rechts (onder) */}
+        <line x1="54" y1="20" x2="70" y2="20" />
+        <polyline points="65 17 70 20 65 23" />
+      </g>
+
+      {/* Front status LEDs & Poorten */}
+      <circle cx="8" cy="12" r="1.5" fill="#22c55e" />
+      <circle cx="13" cy="12" r="1.5" fill="#38bdf8" />
+      <circle cx="8" cy="19" r="1.5" fill="#22c55e" />
+      <circle cx="13" cy="19" r="1.5" fill="#f59e0b" />
+      
+      {/* Subtiel RJ45 haven-patroon onderrand */}
+      <g fill="#082f49" stroke="#0ea5e9" strokeWidth="0.5">
+        <rect x="20" y="27" width="4" height="3" rx="0.5" />
+        <rect x="26" y="27" width="4" height="3" rx="0.5" />
+        <rect x="32" y="27" width="4" height="3" rx="0.5" />
+        <rect x="38" y="27" width="4" height="3" rx="0.5" />
+        <rect x="54" y="27" width="4" height="3" rx="0.5" />
+        <rect x="60" y="27" width="4" height="3" rx="0.5" />
+        <rect x="66" y="27" width="4" height="3" rx="0.5" />
+        <rect x="72" y="27" width="4" height="3" rx="0.5" />
+      </g>
+      <text x="86" y="20" fill="#bae6fd" fontSize="7" fontFamily="sans-serif" fontWeight="bold">L2</text>
+    </svg>
+  );
+}
+
+// 8. Data Center / Rack Server SVG
+export function ServerSvg({ width = 76, height = 42 }: { width?: number; height?: number }) {
+  return (
+    <svg width={width} height={height} viewBox="0 0 76 42" className="overflow-visible select-none drop-shadow-md">
+      <defs>
+        <linearGradient id="srvBody" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#334155" />
+          <stop offset="50%" stopColor="#1e293b" />
+          <stop offset="100%" stopColor="#0f172a" />
+        </linearGradient>
+      </defs>
+      {/* 2U Chassis */}
+      <rect x="2" y="3" width="72" height="36" rx="2.5" fill="url(#srvBody)" stroke="#090d16" strokeWidth="1.5" />
+      <line x1="3" y1="21" x2="73" y2="21" stroke="#475569" strokeWidth="0.8" />
+      
+      {/* Rack Mount Ears links & rechts */}
+      <rect x="0" y="7" width="2.5" height="8" rx="0.5" fill="#64748b" />
+      <rect x="0" y="27" width="2.5" height="8" rx="0.5" fill="#64748b" />
+      <rect x="73.5" y="7" width="2.5" height="8" rx="0.5" fill="#64748b" />
+      <rect x="73.5" y="27" width="2.5" height="8" rx="0.5" fill="#64748b" />
+
+      {/* Drive Caddies rij 1 */}
+      <g fill="#1e293b" stroke="#475569" strokeWidth="0.6">
+        <rect x="6" y="7" width="9" height="10" rx="0.5" />
+        <rect x="17" y="7" width="9" height="10" rx="0.5" />
+        <rect x="28" y="7" width="9" height="10" rx="0.5" />
+        <rect x="39" y="7" width="9" height="10" rx="0.5" />
+      </g>
+      {/* Drive Caddies rij 2 */}
+      <g fill="#1e293b" stroke="#475569" strokeWidth="0.6">
+        <rect x="6" y="25" width="9" height="10" rx="0.5" />
+        <rect x="17" y="25" width="9" height="10" rx="0.5" />
+        <rect x="28" y="25" width="9" height="10" rx="0.5" />
+        <rect x="39" y="25" width="9" height="10" rx="0.5" />
+      </g>
+
+      {/* Power Button & Status LEDs */}
+      <circle cx="56" cy="12" r="2.2" fill="#3b82f6" stroke="#93c5fd" strokeWidth="0.8" />
+      <circle cx="64" cy="10" r="1.2" fill="#22c55e" />
+      <circle cx="68" cy="10" r="1.2" fill="#22c55e" />
+      <circle cx="64" cy="14" r="1.2" fill="#38bdf8" />
+      <circle cx="68" cy="14" r="1.2" fill="#f59e0b" />
+
+      {/* Ventilatie grill */}
+      <line x1="52" y1="26" x2="70" y2="26" stroke="#475569" strokeWidth="1" strokeDasharray="1.5,1.5" />
+      <line x1="52" y1="30" x2="70" y2="30" stroke="#475569" strokeWidth="1" strokeDasharray="1.5,1.5" />
+      <line x1="52" y1="34" x2="70" y2="34" stroke="#475569" strokeWidth="1" strokeDasharray="1.5,1.5" />
+    </svg>
+  );
+}
+
+// 9. Workstation / PC SVG
+export function WorkstationSvg({ width = 48, height = 44 }: { width?: number; height?: number }) {
+  return (
+    <svg width={width} height={height} viewBox="0 0 48 44" className="overflow-visible select-none drop-shadow-md">
+      <defs>
+        <linearGradient id="pcScreen" x1="0%" y1="0%" x2="0%" y2="100%">
+          <stop offset="0%" stopColor="#1e3a8a" />
+          <stop offset="100%" stopColor="#3b82f6" />
+        </linearGradient>
+      </defs>
+      {/* Monitor Screen */}
+      <rect x="2" y="2" width="34" height="25" rx="2" fill="#1e293b" stroke="#0f172a" strokeWidth="1.2" />
+      <rect x="4" y="4" width="30" height="21" rx="1" fill="url(#pcScreen)" />
+      {/* Monitor Display inner UI lines */}
+      <line x1="8" y1="9" x2="22" y2="9" stroke="#93c5fd" strokeWidth="1.2" strokeLinecap="round" />
+      <line x1="8" y1="13" x2="18" y2="13" stroke="#93c5fd" strokeWidth="1" strokeOpacity="0.7" strokeLinecap="round" />
+      <rect x="8" y="16" width="12" height="6" rx="0.5" fill="#60a5fa" fillOpacity="0.4" />
+      <circle cx="28" cy="19" r="2.5" fill="#67e8f9" />
+
+      {/* Monitor Stand */}
+      <path d="M 17 27 L 17 33 L 13 35 L 25 35 L 21 33 L 21 27 Z" fill="#64748b" stroke="#475569" strokeWidth="0.8" />
+
+      {/* Mini Desktop Tower / PC aan de zijkant */}
+      <rect x="38" y="7" width="9" height="28" rx="1.5" fill="#334155" stroke="#1e293b" strokeWidth="1" />
+      <circle cx="42.5" cy="11" r="1.2" fill="#38bdf8" />
+      <rect x="40" y="14" width="5" height="1.5" fill="#64748b" />
+      <rect x="40" y="17" width="5" height="1.5" fill="#64748b" />
+      <line x1="40" y1="27" x2="45" y2="27" stroke="#64748b" strokeWidth="0.8" />
+      <line x1="40" y1="29" x2="45" y2="29" stroke="#64748b" strokeWidth="0.8" />
+    </svg>
+  );
+}
+
+// 10. Access Point (WiFi AP) SVG
+export function AccessPointSvg({ width = 44, height = 44 }: { width?: number; height?: number }) {
+  return (
+    <svg width={width} height={height} viewBox="0 0 44 44" className="overflow-visible select-none drop-shadow-md">
+      <defs>
+        <radialGradient id="apBody" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="70%" stopColor="#f8fafc" />
+          <stop offset="100%" stopColor="#e2e8f0" />
+        </radialGradient>
+      </defs>
+      {/* Enterprise Dome Disc */}
+      <circle cx="22" cy="22" r="16" fill="url(#apBody)" stroke="#94a3b8" strokeWidth="1.4" />
+      <circle cx="22" cy="22" r="10" fill="none" stroke="#cbd5e1" strokeWidth="0.8" />
+      
+      {/* Center glowing LED */}
+      <circle cx="22" cy="22" r="2.8" fill="#38bdf8" stroke="#0284c7" strokeWidth="1" />
+      <circle cx="22" cy="22" r="1.2" fill="#ffffff" />
+
+      {/* Wireless RF Waves links & rechts */}
+      <path d="M 12 16 A 10 10 0 0 0 12 28" fill="none" stroke="#0284c7" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M 7 13 A 16 16 0 0 0 7 31" fill="none" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3,2" />
+      <path d="M 32 16 A 10 10 0 0 1 32 28" fill="none" stroke="#0284c7" strokeWidth="1.5" strokeLinecap="round" />
+      <path d="M 37 13 A 16 16 0 0 1 37 31" fill="none" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round" strokeDasharray="3,2" />
+    </svg>
+  );
+}
+

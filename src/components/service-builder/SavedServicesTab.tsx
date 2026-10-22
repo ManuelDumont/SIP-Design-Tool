@@ -15,30 +15,81 @@ export function SavedServicesTab({
   setActiveTab,
   handleDeleteSaved
 }: SavedServicesTabProps) {
+  const [filterCategory, setFilterCategory] = React.useState<'all' | 'voice' | 'data'>('all');
+
+  const filtered = servicesList.filter(s => {
+    if (filterCategory === 'all') return true;
+    if (filterCategory === 'data') return s.category === 'data';
+    return s.category !== 'data';
+  });
+
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-4">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-            Beheer van Ingebouwde &amp; Zelf Samengestelde Diensten
+            Beheer van Ingebouwde &amp; Zelf Samengestelde Templates
           </h3>
           <p className="text-xs text-slate-400">
-            Alle diensten die beschikbaar zijn in de dropdown-lijsten van locaties en Medianten.
+            Alle templates die beschikbaar zijn in de dropdown-lijsten van locaties en apparatuur.
           </p>
         </div>
 
-        <button
-          type="button"
-          onClick={() => setActiveTab('studio')}
-          className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer flex items-center gap-1.5"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Nieuwe Dienst Samenstellen</span>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Categorie Filter Tabs */}
+          <div className={`p-1 rounded-xl border flex text-xs font-bold ${
+            darkMode ? 'bg-slate-900 border-slate-700' : 'bg-slate-100 border-slate-200'
+          }`}>
+            <button
+              type="button"
+              onClick={() => setFilterCategory('all')}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer ${
+                filterCategory === 'all'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              Alle ({servicesList.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterCategory('voice')}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                filterCategory === 'voice'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              <span>🎙️ Voice</span>
+              <span>({servicesList.filter(s => s.category !== 'data').length})</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => setFilterCategory('data')}
+              className={`px-2.5 py-1 rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                filterCategory === 'data'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
+              }`}
+            >
+              <span>🌐 Data</span>
+              <span>({servicesList.filter(s => s.category === 'data').length})</span>
+            </button>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('studio')}
+            className="px-3.5 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer flex items-center gap-1.5 shrink-0"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Nieuw Template</span>
+          </button>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3.5 pt-2">
-        {servicesList.map(svc => (
+        {filtered.map(svc => (
           <div
             key={svc.id}
             className={`p-4 rounded-xl border flex flex-col justify-between transition-all ${
@@ -49,16 +100,25 @@ export function SavedServicesTab({
           >
             <div>
               <div className="flex items-center justify-between gap-2 mb-2">
-                <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
-                  svc.isBuiltIn ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200' : 'bg-blue-600 text-white'
-                }`}>
-                  {svc.code}
-                </span>
+                <div className="flex items-center gap-1.5">
+                  <span className={`text-xs font-mono font-bold px-2 py-0.5 rounded ${
+                    svc.isBuiltIn ? 'bg-slate-200 dark:bg-slate-700 text-slate-800 dark:text-slate-200' : 'bg-blue-600 text-white'
+                  }`}>
+                    {svc.code}
+                  </span>
+                  <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                    svc.category === 'data' 
+                      ? 'bg-cyan-100 dark:bg-cyan-950/80 text-cyan-800 dark:text-cyan-300' 
+                      : 'bg-indigo-100 dark:bg-indigo-950/80 text-indigo-800 dark:text-indigo-300'
+                  }`}>
+                    {svc.category === 'data' ? '🌐 Data' : '🎙️ Voice'}
+                  </span>
+                </div>
                 {svc.isBuiltIn ? (
                   <span className="text-[10px] text-slate-400 font-semibold uppercase">Ingebouwd</span>
                 ) : (
                   <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100/60 dark:bg-emerald-950 px-2 py-0.5 rounded">
-                    Eigen Dienst
+                    Eigen Template
                   </span>
                 )}
               </div>

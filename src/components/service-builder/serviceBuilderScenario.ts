@@ -2,7 +2,7 @@ import { BuilderElement, IntakeQuestion, IntakeScenario } from '../../types';
 
 // Bepaalt of een type element standaard IP-adressen vereist
 export function doesElementRequireIp(type: BuilderElement['type']): boolean {
-  return ['router', 'mediant', 'firewall', 'pbx', 'cloud', 'sbc'].includes(type);
+  return ['router', 'mediant', 'firewall', 'pbx', 'sbc'].includes(type);
 }
 
 // Genereert automatisch het complete uitvraagscenario op basis van de elementen op het canvas
@@ -50,7 +50,7 @@ export function generateIntakeScenario(
     description: 'De fysieke klantsite(s) waar de apparatuur en aansluitingen worden geplaatst.'
   });
 
-  // Check of er CN (Corporate Network) elementen zijn
+  // Check of er CN (Corporate Net) elementen zijn
   const hasCn = elements.some(e => 
     (e.label || '').toUpperCase().includes('CN') || 
     (e.customText || '').toUpperCase().includes('CN')
@@ -172,82 +172,78 @@ export function generateIntakeScenario(
       }
 
       case 'firewall': {
+        // Detecteer topologie achter de firewall:
+        // Komt er een LAN-wolk achter waar een PBX achter hangt, of een PBX direct achter de firewall?
+        const hasPbxInDesign = elements.some(e => e.type === 'pbx');
+        const hasCloudInDesign = elements.some(e => e.type === 'cloud');
+
+        let topologyDesc = 'Firewall als beveiligingsdemarcatie';
+        if (hasCloudInDesign && hasPbxInDesign) {
+          topologyDesc = 'Firewall met achterliggende LAN-wolk en PBX';
+        } else if (hasPbxInDesign) {
+          topologyDesc = 'Firewall met PBX direct achter de firewall';
+        } else if (hasCloudInDesign) {
+          topologyDesc = 'Firewall met achterliggende Customer LAN-wolk';
+        }
+
+        // 1. Het terminerende adres vóór de firewall is altijd het PBX-adres (geen voorbeeldadres)
+        const linkedPbx = elements.find(e => e.type === 'pbx');
+        const defaultTermIp = el.wanIp || (linkedPbx ? (linkedPbx.lanIp || linkedPbx.wanIp) : '') || '';
+
         questions.push({
-          id: `q-${el.id}-firewall-ip`,
+          id: `q-${el.id}-firewall-term-ip`,
           elementId: el.id,
           elementName: elemLabel,
           elementType: 'firewall',
-          fieldKey: `${el.id}_firewallIp`,
-          label: `${elemLabel} - Firewall / PBX Gateway IP`,
-          placeholder: '10.20.2.xxx',
+          fieldKey: `${el.id}_terminatingIp`,
+          label: `${elemLabel} - PBX-adres (terminerend adres vóór Firewall)`,
+          placeholder: defaultTermIp || 'PBX IP-adres (geen voorbeeldadres)',
           type: 'ip',
           category: 'security',
           required: true,
-          description: `Interface IP-adres op de ${elemLabel} voor de beveiligde PBX/Voice verbinding.`
+          description: `Bij gebruik van een firewall door de klant is het PBX-adres het adres waar getermineerd wordt vóór de firewall. Er wordt géén voorbeeldadres gebruikt; de interne adressen en de firewall zelf zijn onbekend terrein (klantbeheer).`
         });
 
+        // 2. Achterliggende routering & firewallregels (klantdomein / onbekend terrein)
         questions.push({
-          id: `q-${el.id}-dmz-gateway`,
+          id: `q-${el.id}-behind-fw-note`,
           elementId: el.id,
           elementName: elemLabel,
           elementType: 'firewall',
-          fieldKey: `${el.id}_dmzGateway`,
-          label: `${elemLabel} - Management / Gateway IP`,
-          placeholder: '10.20.2.254',
-          type: 'gateway',
+          fieldKey: `${el.id}_behindFwHandling`,
+          label: `${elemLabel} - Interne topologie (${topologyDesc})`,
+          placeholder: 'Klant / IT-partner verzorgt intern LAN, NAT & SIP-doorvoer',
+          type: 'text',
           category: 'security',
           required: false,
-          description: `Gateway of beheeradres achter ${elemLabel}.`
+          description: `Onbekend terrein: klant/IT-beheerder beheert zelf de firewall, eventuele LAN-wolk en PBX. SIP ALG dient uitgeschakeld te zijn en SIP (5060 UDP/TCP) + RTP (10000-20000 UDP) worden doorgelaten.`
         });
         break;
       }
 
       case 'pbx': {
+        const hasFw = elements.some(e => e.type === 'firewall');
         questions.push({
           id: `q-${el.id}-pbx-ip`,
           elementId: el.id,
           elementName: elemLabel,
           elementType: 'pbx',
           fieldKey: `${el.id}_pbxIp`,
-          label: `${elemLabel} - SIP PBX Endpoint IP`,
-          placeholder: '192.168.1.50',
+          label: `${elemLabel} - SIP PBX Adres${hasFw ? ' (terminerend adres vóór firewall)' : ''}`,
+          placeholder: el.lanIp || el.wanIp || 'PBX IP-adres',
           type: 'ip',
           category: 'endpoint',
           required: true,
-          description: `IP-adres van de lokale telefooncentrale (SIP PBX) die communiceert met de operator.`
-        });
-
-        questions.push({
-          id: `q-${el.id}-pbx-brand`,
-          elementId: el.id,
-          elementName: elemLabel,
-          elementType: 'pbx',
-          fieldKey: `${el.id}_pbxBrand`,
-          label: `${elemLabel} - Merk & Model Telefooncentrale`,
-          placeholder: 'Bijv. Mitel, Avaya, 3CX, Cisco CallManager',
-          type: 'text',
-          category: 'endpoint',
-          required: false,
-          description: `Merk en softwareversie van de aangesloten centrale.`
+          description: hasFw
+            ? `Bij gebruik van een firewall door de klant is het PBX-adres altijd het adres waar getermineerd wordt vóór de firewall. Er wordt géén fictief voorbeeldadres gebruikt.`
+            : `IP-adres van de lokale telefooncentrale (SIP PBX) die communiceert met de operator.`
         });
         break;
       }
 
       case 'cloud': {
-        questions.push({
-          id: `q-${el.id}-subnet`,
-          elementId: el.id,
-          elementName: elemLabel,
-          elementType: 'cloud',
-          fieldKey: `${el.id}_cloudSubnet`,
-          label: `${elemLabel} - Netwerk Range / CIDR`,
-          placeholder: '192.168.1.0/24',
-          type: 'subnet',
-          category: 'network',
-          required: true,
-          defaultVal: '192.168.1.0/24',
-          description: `Het IP-subnet van de klantomgeving voor ${elemLabel}.`
-        });
+        // Customer LAN info wordt al gegeven in de Mediant invulvelden (Voice LAN IP, Subnetmasker, Gateway).
+        // De Mediant zit aan de LAN-kant, dus het LAN en subnet zijn al volledig opgegeven.
         break;
       }
 
@@ -268,35 +264,129 @@ export function generateIntakeScenario(
         break;
       }
 
+      case 'switch': {
+        questions.push({
+          id: `q-${el.id}-switch-ip`,
+          elementId: el.id,
+          elementName: elemLabel,
+          elementType: 'switch',
+          fieldKey: `${el.id}_switchIp`,
+          label: `${elemLabel} - Management IP-adres`,
+          placeholder: el.lanIp || '192.168.1.2',
+          type: 'ip',
+          category: 'network',
+          required: true,
+          description: `Vast beheer IP-adres voor configuratie en monitoring van de netwerkswitch.`
+        });
+        questions.push({
+          id: `q-${el.id}-switch-gateway`,
+          elementId: el.id,
+          elementName: elemLabel,
+          elementType: 'switch',
+          fieldKey: `${el.id}_switchGateway`,
+          label: `${elemLabel} - Default Gateway`,
+          placeholder: '192.168.1.1',
+          type: 'gateway',
+          category: 'network',
+          required: false,
+          description: `Standaard gateway voor het beheer-VLAN van de switch.`
+        });
+        break;
+      }
+
+      case 'server': {
+        questions.push({
+          id: `q-${el.id}-server-ip`,
+          elementId: el.id,
+          elementName: elemLabel,
+          elementType: 'server',
+          fieldKey: `${el.id}_serverIp`,
+          label: `${elemLabel} - Vast IP-adres`,
+          placeholder: el.lanIp || '192.168.1.100',
+          type: 'ip',
+          category: 'endpoint',
+          required: true,
+          description: `Statisch IP-adres van de server in het datanetwerk.`
+        });
+        questions.push({
+          id: `q-${el.id}-server-subnet`,
+          elementId: el.id,
+          elementName: elemLabel,
+          elementType: 'server',
+          fieldKey: `${el.id}_serverSubnet`,
+          label: `${elemLabel} - Subnetmasker`,
+          placeholder: '255.255.255.0 (/24)',
+          type: 'subnet',
+          category: 'network',
+          required: false,
+          description: `Subnetmasker van het netwerksegment waarin de server zich bevindt.`
+        });
+        break;
+      }
+
+      case 'workstation': {
+        questions.push({
+          id: `q-${el.id}-pc-ip`,
+          elementId: el.id,
+          elementName: elemLabel,
+          elementType: 'workstation',
+          fieldKey: `${el.id}_workstationIp`,
+          label: `${elemLabel} - IP Toewijzing`,
+          placeholder: 'DHCP Pool (of vast IP)',
+          type: 'text',
+          category: 'endpoint',
+          required: false,
+          description: `IP-adrestype voor de werkplek (DHCP vanuit router/firewall of statisch adres).`
+        });
+        break;
+      }
+
+      case 'access-point': {
+        questions.push({
+          id: `q-${el.id}-ap-ip`,
+          elementId: el.id,
+          elementName: elemLabel,
+          elementType: 'access-point',
+          fieldKey: `${el.id}_apIp`,
+          label: `${elemLabel} - Access Point IP`,
+          placeholder: el.lanIp || '192.168.1.50',
+          type: 'ip',
+          category: 'network',
+          required: false,
+          description: `Beheer IP-adres van het draadloze Access Point.`
+        });
+        break;
+      }
+
       default:
         break;
     }
   });
 
-  // Als er CN functionaliteit is gedetecteerd, voeg Corporate Network IP's toe
+  // Als er CN functionaliteit is gedetecteerd, voeg Corporate Net IP's toe
   if (hasCn) {
     questions.push({
       id: 'cn-wan-ip',
-      elementName: 'Corporate Network (CN)',
+      elementName: 'CN',
       fieldKey: 'cnWanIp',
-      label: 'Corporate Network (CN) - WAN IP',
+      label: 'CN - WAN IP',
       placeholder: '10.x.x.x',
       type: 'ip',
       category: 'network',
       required: true,
-      description: 'Dedicated WAN IP-adres voor het Corporate Network.'
+      description: 'Dedicated WAN IP-adres voor het CN.'
     });
 
     questions.push({
       id: 'cn-lan-ip',
-      elementName: 'Corporate Network (CN)',
+      elementName: 'CN',
       fieldKey: 'cnLanIp',
-      label: 'Corporate Network (CN) - LAN IP',
+      label: 'CN - LAN IP',
       placeholder: '192.168.x.x',
       type: 'ip',
       category: 'network',
       required: true,
-      description: 'Lokaal IP-adres voor het Corporate Network.'
+      description: 'Lokaal IP-adres voor het CN.'
     });
   }
 
@@ -356,7 +446,7 @@ export function exportIntakeScenarioToText(
   }
 
   lines.push('========================================================================');
-  lines.push('Gegenereerd door SIP Trunk Ontwerper - Bouwstudio Uitvraagmodule');
+  lines.push('Gegenereerd door SIP Design Maker - Templates Uitvraagmodule');
   lines.push('========================================================================');
 
   return lines.join('\n');

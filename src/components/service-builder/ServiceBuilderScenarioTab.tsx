@@ -245,14 +245,14 @@ export function ServiceBuilderScenarioTab({
                 <Network className="w-8 h-8 mx-auto opacity-40 text-blue-500" />
                 <p className="text-sm font-semibold">Nog geen netwerkelementen met IP-adressen op het canvas</p>
                 <p className="text-xs max-w-md mx-auto">
-                  Plaats in de Bouwstudio een <strong>Router</strong>, <strong>Mediant</strong>, <strong>Firewall</strong>, <strong>SIP PBX</strong> of <strong>Wolk</strong>. Zodra u een element toevoegt, bouwt de studio hier automatisch de uitvraagscenario&apos;s voor!
+                  Plaats in Templates een <strong>Router</strong>, <strong>Mediant</strong>, <strong>Firewall</strong>, <strong>SIP PBX</strong> of <strong>Wolk</strong>. Zodra u een element toevoegt, bouwt het systeem hier automatisch de uitvraagscenario&apos;s voor!
                 </p>
                 <button
                   type="button"
                   onClick={onNavigateToStudio}
                   className="mt-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all cursor-pointer"
                 >
-                  Naar de Bouwstudio gaan
+                  Naar Templates gaan
                 </button>
               </div>
             ) : (
