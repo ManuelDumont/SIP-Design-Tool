@@ -43,8 +43,12 @@ export function LocationForm({
 
   useEffect(() => {
     const locCfg = location.multicustomerConfigNr || location.cpes?.[0]?.multicustomerConfigNr;
-    if (locCfg && locCfg !== configInputVal) {
-      setConfigInputVal(locCfg);
+    if (locCfg) {
+      const numLoc = parseInt(locCfg, 10);
+      const numCurr = parseInt(configInputVal, 10);
+      if (isNaN(numCurr) || numLoc !== numCurr) {
+        setConfigInputVal(locCfg);
+      }
     }
   }, [location.multicustomerConfigNr, location.cpes]);
 

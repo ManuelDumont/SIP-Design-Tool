@@ -9,32 +9,38 @@ interface ServiceElementBadgesProps {
   updateElement: (id: string, updates: Partial<BuilderElement>) => void;
   onSelect: () => void;
   elements?: BuilderElement[];
+  templateCategory?: 'voice' | 'data';
 }
 
 /**
  * ServiceElementBadges:
  * Flexibele, overlapvrije weergave van:
- * 1. Elementnaam (Label): Onder, boven, links of rechts van het element
- * 2. IP-adressen (WAN & LAN): Links of rechts van het element
+ * 1. Elementnaam (Label): Onder, boven, links of rechts van het element (alleen indien ingevuld)
+ * 2. IP-adressen (WAN & LAN): Links of rechts van het element (met x.x.x.x als standaard)
  * 
  * Volgt strikt:
- * - Geen fictieve voorbeeldadressen gebruiken.
- * - Bij gebruik van een firewall door de klant is het PBX-adres het adres waar getermineerd wordt vóór de firewall.
- * - Intern LAN achter de firewall is onbekend terrein (klantbeheer).
+ * - Geen fictieve voorbeeldadressen gebruiken (gebruik x.x.x.x).
+ * - Geen standaard labels zoals 'Firewall' of 'Core Switch' forceren.
+ * - Bij data diensten termineert een firewall op een WAN IP (géén PBX-adres label!).
+ * - Bij voice diensten met een klant-firewall termineert de PBX-verbinding vóór de firewall.
  */
 export const ServiceElementBadges: React.FC<ServiceElementBadgesProps> = ({
   el,
   placement,
   updateElement,
   onSelect,
-  elements = []
+  elements = [],
+  templateCategory = 'voice'
 }) => {
   if (!placement) return null;
 
+  const isDataFirewall = el.type === 'firewall' && (templateCategory === 'data' || !elements.some(e => e.type === 'pbx'));
+  const isVoiceFirewall = el.type === 'firewall' && !isDataFirewall;
+
   return (
     <>
-      {/* 1. NAAMVELD (Onder, boven, links of rechts - 100% overlapvrij met andere elementen) */}
-      {placement.hasName && (
+      {/* 1. NAAMVELD: Alleen getoond als de gebruiker zelf daadwerkelijk een label heeft ingevuld */}
+      {placement.hasName && Boolean(el.label && el.label.trim().length > 0) && (
         <div
           className={`absolute pointer-events-auto z-30 transition-all select-none ${
             placement.nameSide === 'bottom'
@@ -57,7 +63,7 @@ export const ServiceElementBadges: React.FC<ServiceElementBadgesProps> = ({
           >
             <BuilderInlineEdit
               value={el.label || ''}
-              placeholder={el.type === 'mediant' ? 'Mediant' : el.type === 'router' ? 'Core Router' : el.type.toUpperCase()}
+              placeholder=""
               onSave={(val) => updateElement(el.id, { label: val })}
               className="text-white hover:text-blue-200"
               inputClassName="text-slate-900 text-[10px] py-0 px-1"
@@ -67,7 +73,7 @@ export const ServiceElementBadges: React.FC<ServiceElementBadgesProps> = ({
         </div>
       )}
 
-      {/* 2. IP-ADRES VELDJES (WAN & LAN: links of rechts van het element - 100% overlapvrij) */}
+      {/* 2. IP-ADRES VELDJES (WAN & LAN: links of rechts van het element - met x.x.x.x) */}
       {placement.hasIp && (
         <div
           className={`absolute pointer-events-auto z-30 transition-all select-none ${
@@ -85,39 +91,51 @@ export const ServiceElementBadges: React.FC<ServiceElementBadgesProps> = ({
             {placement.showWan && (
               <div
                 className="flex items-center gap-1.5"
-                title={el.type === 'firewall' ? "PBX-adres: terminerend adres vóór de firewall (geen voorbeeldadres)" : "Klik om WAN IP-adres aan te passen"}
+                title={
+                  isVoiceFirewall
+                    ? "PBX-adres: terminerend adres vóór de firewall"
+                    : isDataFirewall
+                    ? "WAN IP: terminerend adres vóór de firewall"
+                    : "Klik om WAN IP-adres aan te passen"
+                }
               >
                 <span className={`px-1 py-0.2 rounded font-bold text-[8px] tracking-tight ${
-                  el.type === 'firewall'
+                  isVoiceFirewall
                     ? 'bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-200'
                     : 'bg-blue-100 dark:bg-blue-900/50 text-blue-700 dark:text-blue-300'
                 }`}>
-                  {el.type === 'firewall' ? 'PBX-adres (vóór FW)' : 'WAN'}
+                  {isVoiceFirewall ? 'PBX-adres (vóór FW)' : el.type === 'firewall' ? 'WAN (vóór FW)' : 'WAN'}
                 </span>
                 {(() => {
-                  const linkedPbx = elements.find(e => e.type === 'pbx');
+                  const linkedPbx = isVoiceFirewall ? elements.find(e => e.type === 'pbx') : null;
                   const firewallTermIp = el.type === 'firewall'
-                    ? (el.wanIp || (linkedPbx ? (linkedPbx.lanIp || linkedPbx.wanIp) : '') || '')
-                    : (el.wanIp || '');
+                    ? (el.wanIp || (linkedPbx ? (linkedPbx.lanIp || linkedPbx.wanIp) : '') || 'x.x.x.x')
+                    : (el.wanIp || 'x.x.x.x');
                   return (
                     <BuilderInlineEdit
                       value={firewallTermIp}
-                      placeholder={el.type === 'firewall' ? 'PBX-adres vóór FW' : 'IP-adres'}
+                      placeholder="x.x.x.x"
                       isIp
                       onSave={(val) => {
                         updateElement(el.id, { wanIp: val });
-                        // Bij gebruik van firewall is het PBX-adres het adres waar getermineerd wordt vóór de firewall
-                        if (el.type === 'firewall' && linkedPbx) {
+                        // Bij voice firewall is het PBX-adres het adres waar getermineerd wordt vóór de firewall
+                        if (isVoiceFirewall && linkedPbx) {
                           updateElement(linkedPbx.id, { lanIp: val });
                         }
                       }}
                       className={`${
-                        el.type === 'firewall'
+                        isVoiceFirewall
                           ? 'text-amber-950 dark:text-amber-200 font-bold hover:text-amber-600'
                           : 'text-blue-950 dark:text-blue-200 font-semibold hover:text-blue-600'
                       }`}
                       inputClassName="text-slate-900 text-[9px] py-0 px-1"
-                      title={el.type === 'firewall' ? "Terminerend PBX-adres vóór firewall (geen voorbeeldadres)" : "Klik om WAN IP direct aan te passen"}
+                      title={
+                        isVoiceFirewall
+                          ? "Terminerend PBX-adres vóór firewall"
+                          : isDataFirewall
+                          ? "Terminerend WAN IP vóór firewall"
+                          : "Klik om WAN IP direct aan te passen"
+                      }
                     />
                   );
                 })()}
@@ -136,13 +154,12 @@ export const ServiceElementBadges: React.FC<ServiceElementBadgesProps> = ({
                   {el.type === 'firewall' ? 'LAN (Klant)' : 'LAN'}
                 </span>
                 <BuilderInlineEdit
-                  value={el.lanIp || ''}
-                  placeholder={el.type === 'firewall' ? 'Onbekend (Klant)' : el.type === 'pbx' ? 'PBX IP' : 'IP-adres'}
+                  value={el.lanIp || (el.type === 'firewall' ? '' : 'x.x.x.x')}
+                  placeholder={el.type === 'firewall' ? 'Onbekend (Klant)' : 'x.x.x.x'}
                   isIp={el.type !== 'firewall'}
                   onSave={(val) => {
                     updateElement(el.id, { lanIp: val });
-                    // Als PBX gewijzigd wordt en er is een firewall in het ontwerp, synchroniseer het terminerende adres vóór de firewall
-                    if (el.type === 'pbx') {
+                    if (el.type === 'pbx' && !isDataFirewall) {
                       const fw = elements.find(e => e.type === 'firewall');
                       if (fw) {
                         updateElement(fw.id, { wanIp: val });

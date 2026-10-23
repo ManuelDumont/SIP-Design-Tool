@@ -46,7 +46,7 @@ export function generateIntakeScenario(
     placeholder: 'Bijv. Hoofdkantoor Utrecht, Filiaal Amsterdam',
     type: 'text',
     category: 'general',
-    required: true,
+    required: false,
     description: 'De fysieke klantsite(s) waar de apparatuur en aansluitingen worden geplaatst.'
   });
 
@@ -394,7 +394,8 @@ export function generateIntakeScenario(
     alwaysIncludeGeneral: true,
     customerNameRequired: true,
     projectNumberRequired: true,
-    locationsRequired: true,
+    locationsRequired: false,
+    includeLocations: true,
     questions
   };
 }
@@ -412,8 +413,10 @@ export function exportIntakeScenarioToText(
   lines.push('DEEL 1: ALGEMENE PROJECTGEGEVENS (SOWIESO ALTIJD VAN TOEPASSING)');
   lines.push('------------------------------------------------------------------------');
   lines.push('[ ] 1. Klantnaam:             ___________________________________________');
-  lines.push('[ ] 2. Projectnummer (8 tek): ___________________________________________ (exact 8 tekens/digits)');
-  lines.push('[ ] 3. Locatie(s) / Sites:    ___________________________________________');
+  lines.push('[ ] 2. Projectnummer (8 tek): ___________________________________________ (exact 8 tekens)');
+  if (scenario.includeLocations !== false) {
+    lines.push('[ ] 3. Locatie(s) / Sites:    ___________________________________________');
+  }
   lines.push('');
 
   const techQuestions = scenario.questions.filter(q => q.category !== 'general');
@@ -434,8 +437,7 @@ export function exportIntakeScenarioToText(
     Object.entries(grouped).forEach(([elemName, qList]) => {
       lines.push(`[+] Element: ${elemName}`);
       qList.forEach(q => {
-        const reqStr = q.required ? '[VERPLICHT]' : '[OPTIONEEL]';
-        lines.push(`    - ${q.label} ${reqStr}`);
+        lines.push(`    - ${q.label}`);
         lines.push(`      Waarde: _____________________________________ (bijv. ${q.placeholder || '-'})`);
         if (q.description) {
           lines.push(`      Toelichting: ${q.description}`);

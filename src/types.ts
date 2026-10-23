@@ -87,6 +87,7 @@ export interface IntakeScenario {
   customerNameRequired: boolean;
   projectNumberRequired: boolean;
   locationsRequired: boolean;
+  includeLocations?: boolean;
   questions: IntakeQuestion[];
 }
 

@@ -690,8 +690,7 @@ export function NetworkDiagram({
 
       const lastExt = getCpeExtents(clusterCpeItems[k - 1]);
       const clusterWidth = currentRel + lastExt.rightExtent + 40;
-      const yOffset = shouldStagger ? (globalCpeIndex % 2) * STAGGER_OFFSET : 0;
-      globalCpeIndex++;
+      const yOffset = shouldStagger ? (groupIdx % 2) * STAGGER_OFFSET : 0;
 
       const startX = clusterCurrentX;
       clusterCurrentX += clusterWidth + 100; // 100px tussen verschillende clusters
@@ -890,15 +889,20 @@ export function NetworkDiagram({
 
       const firstCpe = clusterCpes[0];
       const firstExt = getCpeExtents(firstCpe);
-      const cloudLeft = isEspritCluster ? (minX - 70) : (minX - firstExt.leftExtent - 35);
       const lastCpe = clusterCpes[clusterCpes.length - 1];
       const lastExt = getCpeExtents(lastCpe);
-      const cloudRight = isEspritCluster ? (maxX + 70) : (maxX + lastExt.rightExtent + 35);
-      const defaultWidth = isEspritCluster ? Math.max(340, cloudRight - cloudLeft) : Math.max(420, cloudRight - cloudLeft);
+
+      // Centratie van de wolk: ALTIJD exact symmetrisch en loodrecht onder de CPE(s)
+      const cpeMidX = (minX + maxX) / 2;
+      const centerX = cpeMidX;
+      const halfSpan = (maxX - minX) / 2;
+      const maxExt = Math.max(firstExt.leftExtent, lastExt.rightExtent, 120);
+      const defaultWidth = isEspritCluster 
+        ? Math.max(280, (halfSpan + 100) * 2) 
+        : Math.max(280, (halfSpan + 100) * 2);
       const customCloud = customSizes[cloudId];
       const width = customCloud?.width || defaultWidth;
-      const height = customCloud?.height || 160;
-      const centerX = (cloudLeft + cloudRight) / 2;
+      const height = customCloud?.height || 115;
       const configNr3 = isEspritCluster
         ? padTo3Digits(clusterCpes.find(c => c.multicustomerConfigNr)?.multicustomerConfigNr || loc.multicustomerConfigNr || '001')
         : undefined;
@@ -936,19 +940,28 @@ export function NetworkDiagram({
       });
     }
 
-    // SLUIT ALLE CPE's PERMANENT EN EXACT AAN OP DE BOVENRAND VAN DE WOLK
-    mappedCpes.forEach(cpe => {
-      const cluster = lanClusters.find(cl => cl.id === `loc-${loc.id || groupIdx}-cluster-${cpe.clusterId}`);
-      if (cluster) {
+    // ALLE CPE's OP DEZE LOCATIE OP DE EXACT GELIJKE HOOGTE (ZODAT DEMARCATIELIJN PERFEKT RECHT DOORLOPENDE IS)
+    const baseCluster = lanClusters[0];
+    const commonCloudTopY = baseCluster 
+      ? getCloudTopY(baseCluster, baseCluster.centerX, CPE_Y) 
+      : CPE_Y + 15;
+    const commonCpeHeight = 40;
+    // Onderzijde Mediant (hoogte 40) sluit naadloos en zonder gap aan op de bovenrand van de Customer LAN wolk
+    const exactTopY = commonCloudTopY - (commonCpeHeight - 2);
+    const locationCommonYOffset = exactTopY - CPE_Y;
+
+    for (let cId = 0; cId < nextClusterId; cId++) {
+      const cluster = lanClusters.find(cl => cl.id === `loc-${loc.id || groupIdx}-cluster-${cId}`);
+      const clusterCpes = mappedCpes.filter(c => c.clusterId === cId);
+      if (!cluster || clusterCpes.length === 0) continue;
+
+      clusterCpes.forEach(cpe => {
         const cpeKey = `cpe-${cpe.id}`;
         const cpeScale = customSizes[cpeKey]?.scale || 1;
-        const cpeHeight = 40 * cpeScale;
-
-        // Bepaal de exacte bovenrand van de wolk op de horizontale x-positie van deze CPE
-        const cloudBorderY = getCloudTopY(cluster, cpe.cpeX, CPE_Y);
-        // De Mediant is cpeHeight px hoog. De onderzijde rust exact 5px in de wolkboog (geen kier!)
-        const exactCpeTopY = cloudBorderY - (cpeHeight - 5);
-        cpe.yOffset = exactCpeTopY - CPE_Y;
+        const manualOffset = customOffsets[`cpe-${cpe.id}`]?.y || 0;
+        
+        // Alle apparaten hebben exact dezelfde hoogte zodat de demarcatielijn er strak en recht doorheen loopt
+        cpe.yOffset = locationCommonYOffset + manualOffset;
 
         // Synchroniseer Gateway en PBX Y-posities direct met de onderzijde van de wolk
         const LOCAL_PBX_GAP = 28;
@@ -959,29 +972,23 @@ export function NetworkDiagram({
           const cloudBottom = getCloudBottomY(cluster, pbx.x, CPE_Y);
 
           if (isEspritCluster) {
-            // Esprit architectuur:
-            // 1. Firewall (hoogte 40) op cloudBottom + 35
-            // 2. Kleinere Customer LAN wolk (hoogte 75) op cloudBottom + 35 + 40 + 30 = cloudBottom + 105
-            // 3. PBX daaraan vast op kleine wolk onderzijde + 25
             const smallCloudBottom = cloudBottom + 105 + 75;
             pbx.y = smallCloudBottom + 25 + pbxOffset.y;
             pbx.x = cluster.centerX + pbxOffset.x + (pbxIdx * 130 - (cpe.mappedLocalPbxs.length - 1) * 65);
           } else {
-            // Voldoende ruimte tussen de onderrand van de wolk en het SIP Endpoint icoon (met nette verbindingslijn)
             pbx.y = cloudBottom + LOCAL_PBX_GAP + pbxOffset.y;
           }
         });
+
         const dummyOffset = customOffsets[`pbx-dummy-${cpe.id}`] || { x: 0, y: 0 };
         const dummyCloudBottom = getCloudBottomY(cluster, cpe.dummyLocalX, CPE_Y);
         cpe.dummyLocalY = isEspritCluster
           ? (dummyCloudBottom + 105 + 75 + 25 + dummyOffset.y)
           : (dummyCloudBottom + LOCAL_PBX_GAP + dummyOffset.y);
 
-        // Bepaal de onderrand van de wolk op de horizontale x-positie van de Default Gateway
         const gwCloudBottom = getCloudBottomY(cluster, cpe.gatewayCenterX, CPE_Y);
         const gwOffset = customOffsets[`gw-${cpe.id}`] || { x: 0, y: 0 };
         const GW_GAP = 28;
-        // Gateway bevindt zich netjes onder de rand van de wolk, exact zoals de lokale PBX, en volgt schaalwijzigingen van de wolk
         cpe.gwY = gwCloudBottom + GW_GAP + gwOffset.y;
 
         cpe.mappedRoutedPbxs.forEach((pbx: any) => {
@@ -989,8 +996,8 @@ export function NetworkDiagram({
           // Gerouteerde PBX'en hangen direct onder de Default Gateway
           pbx.y = cpe.gwY + 70 + routedOffset.y;
         });
-      }
-    });
+      });
+    }
     
     const routerOffset = customOffsets[`router-${loc.id || groupIdx}`] || { x: 0, y: 0 };
     const routerKey = `router-${loc.id || groupIdx}`;
@@ -1310,9 +1317,9 @@ export function NetworkDiagram({
                 <line 
                   key={`gw-line-${cpe.id}`} 
                   x1={gwCenterX} 
-                  y1={cloudBottom} 
+                  y1={cloudBottom - 2} 
                   x2={gwCenterX} 
-                  y2={cpe.gwY} 
+                  y2={cpe.gwY + 2} 
                   stroke={lineColor} 
                   strokeWidth="2" 
                 />
@@ -1337,9 +1344,9 @@ export function NetworkDiagram({
                    <line 
                      key={`pbx-local-${pbx.id}`} 
                      x1={pbxCenterX} 
-                     y1={cloudBottom} 
+                     y1={cloudBottom - 2} 
                      x2={pbxCenterX} 
-                     y2={pbx.y} 
+                     y2={pbx.y + 6} 
                      stroke={lineColor} 
                      strokeWidth="2" 
                    />
@@ -1353,7 +1360,7 @@ export function NetworkDiagram({
                  const angleGwToPbx = Math.atan2(pbxCenterY - gwCenterY, pbxCenterX - gwCenterX);
                  const gwBorderX = gwCenterX + 35 * Math.cos(angleGwToPbx);
                  const gwBorderY = gwCenterY + 17.5 * Math.sin(angleGwToPbx);
-                 const pbxPoint = getBoxBorderPoint(pbxCenterX, pbxCenterY, 48, 48, gwBorderX, gwBorderY);
+                 const pbxPoint = getBoxBorderPoint(pbxCenterX, pbxCenterY, 40, 36, gwBorderX, gwBorderY);
                  lines.push(
                    <line 
                      key={`pbx-routed-${pbx.id}`} 
@@ -1382,7 +1389,8 @@ export function NetworkDiagram({
               const smallCloudWidth = 180;
               const smallCloudHeight = 75;
               const smallCloudX = cluster.centerX + smallCloudOffset.x;
-              const smallCloudY = (mainCloudBottom + 38) + smallCloudOffset.y;
+              // Kleine Customer LAN wolk sluit direct en naadloos aan op de onderzijde van de firewall
+              const smallCloudY = (mainCloudBottom + 30) + smallCloudOffset.y;
 
               const lines = [];
               if (fwY > mainCloudBottom + 1 || Math.abs(fwOffset.x) > 3) {
@@ -1399,14 +1407,15 @@ export function NetworkDiagram({
                 );
               }
               const fwBottomY = fwY + fwHeight;
-              if (smallCloudY > fwBottomY + 1 || Math.abs(smallCloudX - fwX) > 3) {
+              const smallCloudTopPuff = smallCloudY + 6;
+              if (smallCloudTopPuff > fwBottomY + 2 || Math.abs(smallCloudX - fwX) > 3) {
                 lines.push(
                   <line
                     key={`esprit-fw-smallcloud-${cluster.id}`}
                     x1={fwX}
                     y1={fwBottomY}
                     x2={smallCloudX}
-                    y2={smallCloudY}
+                    y2={smallCloudTopPuff}
                     stroke={lineColor}
                     strokeWidth="2"
                   />
@@ -1717,8 +1726,8 @@ export function NetworkDiagram({
                     const fwY = (mainCloudBottom - 2) + fwOffset.y;
                     const fwX = cluster.centerX + fwOffset.x;
 
-                    // Kleine Customer LAN wolk sluit direct aan op de onderzijde van de firewall:
-                    const smallCloudY = (mainCloudBottom + 38) + smallCloudOffset.y;
+                    // Kleine Customer LAN wolk sluit direct en naadloos aan op de onderzijde van de firewall:
+                    const smallCloudY = (mainCloudBottom + 30) + smallCloudOffset.y;
 
                     const cfg3 = cluster.configNr3 || '001';
                     const espritCfg = getEspritConfigByNumber(cfg3);
@@ -1886,11 +1895,7 @@ export function NetworkDiagram({
                         width: `${demWidth}px`
                       }}
                     >
-                      <div className="w-full border-t-2 border-dashed border-red-500 shadow-xs relative">
-                        <span className="absolute right-0 -top-2.5 text-[9px] font-bold text-red-600 uppercase tracking-widest bg-white/95 px-1.5 py-0.5 rounded border border-red-200 shadow-xs select-none">
-                          {t.demarcationLineTitle || 'DEMARCATIE'}
-                        </span>
-                      </div>
+                      <div className="w-full border-t-2 border-dashed border-red-500 shadow-xs" />
                     </div>
                   );
                 });

@@ -32,6 +32,7 @@ import { SavedServicesTab } from './service-builder/SavedServicesTab';
 import { generateIntakeScenario } from './service-builder/serviceBuilderScenario';
 import { ServiceBuilderScenarioTab } from './service-builder/ServiceBuilderScenarioTab';
 import { ServiceElementBadges } from './service-builder/ServiceElementBadges';
+import { ConfirmDeleteTemplateModal } from './service-builder/ConfirmDeleteTemplateModal';
 
 interface Props {
   isOpen: boolean;
@@ -58,10 +59,15 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
   const [description, setDescription] = useState<string>('');
   const [defaultConnectorShape, setDefaultConnectorShape] = useState<ConnectorShape>('straight');
 
+  // Actieve template dat eventueel bewerkt wordt of geselecteerd is voor verwijdering
+  const [loadedServiceId, setLoadedServiceId] = useState<string | null>(null);
+  const [serviceToDelete, setServiceToDelete] = useState<CustomServiceDefinition | null>(null);
+
   // Keuze tussen Voice of Data gerelateerde templates (stil overschakelen zonder hinderlijke notificatiebalk)
   const handleSelectCategory = (cat: 'voice' | 'data') => {
     if (cat === templateCategory) return;
     setTemplateCategory(cat);
+    setLoadedServiceId(null);
     setElements([]);
     setSelectedIds([]);
   };
@@ -69,10 +75,24 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
   // Dynamische elementenlijst op het canvas: begint schoon, bij Voice staat enkel IP Voice Access Network standaard vast
   const [elements, setElements] = useState<BuilderElement[]>([]);
 
-  // Automatisch opgebouwd uitvraagscenario op basis van de elementen op het canvas (sowieso altijd klantnaam, projectnummer, locatie(s))
+  // Locatie vraag in uitvraagscenario kan aan/uitgezet worden (nooit mandatory)
+  const [includeLocations, setIncludeLocations] = useState<boolean>(true);
+
+  // Automatisch opgebouwd uitvraagscenario op basis van de elementen op het canvas (klantnaam en projectnummer altijd mandatory, locatie optioneel en aan/uitzetbaar)
   const currentScenario = useMemo(() => {
-    return generateIntakeScenario(elements, serviceName);
-  }, [elements, serviceName]);
+    const sc = generateIntakeScenario(elements, serviceName);
+    return {
+      ...sc,
+      includeLocations,
+      locationsRequired: false,
+      questions: sc.questions.filter(q => {
+        if (q.id === 'general-locations') {
+          return includeLocations;
+        }
+        return true;
+      })
+    };
+  }, [elements, serviceName, includeLocations]);
 
   // Geselecteerde elementen op het canvas (ondersteunt Shift-selectie voor meerdere elementen tegelijk)
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -321,9 +341,9 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
           x: centerX,
           y: centerY,
           scale: 1,
-          label: templateCategory === 'data' ? 'Data Router' : '',
-          wanIp: templateCategory === 'data' ? '198.51.100.1' : '10.183.57.1',
-          lanIp: '192.168.1.1',
+          label: '',
+          wanIp: 'x.x.x.x',
+          lanIp: 'x.x.x.x',
           showWanIp: true,
           showLanIp: templateCategory === 'data',
           ipPlacement: 'auto',
@@ -331,16 +351,15 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
         };
         break;
       case 'mediant': {
-        const count = elements.filter(e => e.type === 'mediant').length + 1;
         newElem = {
           id: newId,
           type: 'mediant',
           x: centerX,
           y: centerY,
           scale: 1,
-          label: `Mediant ${String(count).padStart(3, '0')}`,
-          wanIp: '10.183.57.xxx',
-          lanIp: '192.168.1.1',
+          label: '',
+          wanIp: 'x.x.x.x',
+          lanIp: 'x.x.x.x',
           showWanIp: true,
           showLanIp: true,
           ipPlacement: 'auto',
@@ -349,15 +368,14 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
         break;
       }
       case 'switch': {
-        const count = elements.filter(e => e.type === 'switch').length + 1;
         newElem = {
           id: newId,
           type: 'switch',
           x: centerX,
           y: centerY,
           scale: 1,
-          label: count === 1 ? 'Core Switch' : `Switch ${count}`,
-          lanIp: `192.168.1.${1 + count}`,
+          label: '',
+          lanIp: 'x.x.x.x',
           showWanIp: false,
           showLanIp: true,
           ipPlacement: 'auto',
@@ -366,15 +384,14 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
         break;
       }
       case 'server': {
-        const count = elements.filter(e => e.type === 'server').length + 1;
         newElem = {
           id: newId,
           type: 'server',
           x: centerX,
           y: centerY + 50,
           scale: 1,
-          label: count === 1 ? 'App Server' : `Server ${count}`,
-          lanIp: `192.168.1.${100 + count}`,
+          label: '',
+          lanIp: 'x.x.x.x',
           showWanIp: false,
           showLanIp: true,
           ipPlacement: 'auto',
@@ -383,15 +400,14 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
         break;
       }
       case 'workstation': {
-        const count = elements.filter(e => e.type === 'workstation').length + 1;
         newElem = {
           id: newId,
           type: 'workstation',
           x: centerX + 80,
           y: centerY + 60,
           scale: 1,
-          label: count === 1 ? 'Werkplek PC' : `PC ${count}`,
-          lanIp: `192.168.1.${20 + count}`,
+          label: '',
+          lanIp: 'x.x.x.x',
           showWanIp: false,
           showLanIp: false,
           ipPlacement: 'auto',
@@ -400,15 +416,14 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
         break;
       }
       case 'access-point': {
-        const count = elements.filter(e => e.type === 'access-point').length + 1;
         newElem = {
           id: newId,
           type: 'access-point',
           x: centerX - 80,
           y: centerY + 60,
           scale: 1,
-          label: count === 1 ? 'WiFi AP' : `AP ${count}`,
-          lanIp: `192.168.1.${50 + count}`,
+          label: '',
+          lanIp: 'x.x.x.x',
           showWanIp: false,
           showLanIp: false,
           ipPlacement: 'auto',
@@ -425,11 +440,10 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
           width: templateCategory === 'data' ? 320 : 360,
           height: 90,
           scale: 1,
-          label: templateCategory === 'data' ? 'Internet' : 'Customer LAN'
+          label: ''
         };
         break;
       case 'pbx': {
-        const pbxCount = elements.filter(e => e.type === 'pbx').length + 1;
         const existingFw = elements.find(e => e.type === 'firewall' && e.wanIp);
         newElem = {
           id: newId,
@@ -437,8 +451,8 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
           x: centerX,
           y: centerY + 30,
           scale: 1,
-          label: `SIP PBX ${pbxCount}`,
-          lanIp: existingFw?.wanIp || '', // Geen voorbeeldadres! Koppel met terminerend PBX-adres als er een firewall is
+          label: '',
+          lanIp: existingFw?.wanIp || 'x.x.x.x',
           showWanIp: false,
           showLanIp: true,
           ipPlacement: 'auto',
@@ -448,17 +462,17 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
       }
       case 'firewall': {
         const existingPbx = elements.find(e => e.type === 'pbx' && (e.lanIp || e.wanIp));
-        const terminatingPbxIp = existingPbx ? (existingPbx.lanIp || existingPbx.wanIp || '') : '';
+        const terminatingPbxIp = existingPbx ? (existingPbx.lanIp || existingPbx.wanIp || 'x.x.x.x') : 'x.x.x.x';
         newElem = {
           id: newId,
           type: 'firewall',
           x: centerX,
           y: centerY + 20,
           scale: 1,
-          label: 'Firewall',
-          wanIp: terminatingPbxIp, // Geen voorbeeldadres! Het PBX-adres is het adres waar getermineerd wordt vóór de firewall
+          label: '',
+          wanIp: terminatingPbxIp,
           lanIp: '',              // Intern onbekend terrein (klantbeheer)
-          showWanIp: true,        // Terminerend PBX-adres vóór FW standaard zichtbaar
+          showWanIp: true,        // Terminerend IP vóór FW standaard zichtbaar
           showLanIp: false,       // Intern LAN is klantbeheer (onbekend terrein)
           ipPlacement: 'auto',
           namePlacement: 'auto'
@@ -550,7 +564,7 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
           width: undefined,
           height: undefined,
           scale: 1,
-          customText: 'Tekst',
+          customText: '',
           fontSize: 'sm',
           textAlign: 'center',
           badgeStyle: 'badge-blue'
@@ -562,7 +576,7 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
 
     setElements(prev => [...prev, newElem]);
     setSelectedId(newId);
-    setFeedbackMsg({ text: `Element "${newElem.label || newElem.customText || type}" toegevoegd. Druk op DEL om te wissen.` });
+    setFeedbackMsg({ text: `Element (${type}) toegevoegd. Druk op DEL om te wissen.` });
   };
 
   // Element dupliceren
@@ -602,13 +616,13 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
   // Voegt direct de gewenste achterliggende topologie toe achter een firewall
   // (PBX direct achter de firewall of LAN-wolk met daarachter PBX)
   const handleAddBehindFirewall = (firewallId: string, behindType: 'direct-pbx' | 'cloud-pbx') => {
+    if (templateCategory === 'data') return;
     const fw = elements.find(e => e.id === firewallId);
     if (!fw) return;
 
     if (behindType === 'direct-pbx') {
       const pbxId = `elem-${Date.now()}-pbx`;
       const connId = `conn-${Date.now()}-fw-pbx`;
-      const pbxCount = elements.filter(e => e.type === 'pbx').length + 1;
       const targetX = fw.x + 130;
       const targetY = fw.y;
 
@@ -618,8 +632,8 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
         x: targetX,
         y: targetY,
         scale: 1,
-        label: `SIP PBX ${pbxCount}`,
-        lanIp: fw.wanIp || '', // Geen voorbeeldadres! Koppel met het terminerende PBX-adres vóór de firewall
+        label: '',
+        lanIp: fw.wanIp || 'x.x.x.x',
         showWanIp: false,
         showLanIp: true,
         ipPlacement: 'auto',
@@ -640,19 +654,18 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
         color: '#dc2626',
         lineStyle: 'solid',
         strokeWidth: 2,
-        label: 'SIP (Klantbeheer)'
+        label: ''
       };
 
       setElements(prev => [...prev, newPbx, newConn]);
       setSelectedId(pbxId);
       setSelectedIds([pbxId]);
-      setFeedbackMsg({ text: 'SIP PBX direct achter Firewall geplaatst (Klantnetwerk / Onbekend terrein).' });
+      setFeedbackMsg({ text: 'SIP PBX achter Firewall geplaatst (Klantnetwerk).' });
     } else if (behindType === 'cloud-pbx') {
       const cloudId = `elem-${Date.now()}-cloud`;
       const pbxId = `elem-${Date.now()}-pbx`;
       const conn1Id = `conn-${Date.now()}-fw-cloud`;
       const conn2Id = `conn-${Date.now()}-cloud-pbx`;
-      const pbxCount = elements.filter(e => e.type === 'pbx').length + 1;
       
       const cloudX = fw.x + 110;
       const cloudY = fw.y;
@@ -667,7 +680,7 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
         width: 130,
         height: 65,
         scale: 0.85,
-        label: 'Customer LAN (Klant)'
+        label: ''
       };
 
       const newPbx: BuilderElement = {
@@ -676,8 +689,8 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
         x: pbxX,
         y: pbxY,
         scale: 1,
-        label: `SIP PBX ${pbxCount}`,
-        lanIp: fw.wanIp || '', // Geen voorbeeldadres! Koppel met het terminerende PBX-adres vóór de firewall
+        label: '',
+        lanIp: fw.wanIp || 'x.x.x.x',
         showWanIp: false,
         showLanIp: true,
         ipPlacement: 'auto',
@@ -715,13 +728,13 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
         color: '#475569',
         lineStyle: 'dashed',
         strokeWidth: 2,
-        label: 'LAN'
+        label: ''
       };
 
       setElements(prev => [...prev, newCloud, newPbx, newConn1, newConn2]);
       setSelectedId(pbxId);
       setSelectedIds([pbxId]);
-      setFeedbackMsg({ text: 'Customer LAN-wolk en PBX achter Firewall geplaatst (Klantnetwerk / Onbekend terrein).' });
+      setFeedbackMsg({ text: 'Customer LAN-wolk en PBX achter Firewall geplaatst.' });
     }
   };
 
@@ -1177,12 +1190,13 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
     const hasPhoneElem = elements.some(e => e.type === 'phone');
 
     const isDataTemplate = templateCategory === 'data';
+    const existingId = loadedServiceId || `custom-${Date.now()}`;
     const newDef: CustomServiceDefinition = {
-      id: `custom-${Date.now()}`,
+      id: existingId,
       name: serviceName.trim(),
       code: finalCode,
       category: templateCategory,
-      description: description.trim() || `${isDataTemplate ? 'Data' : 'Voice'} dienst met ${totalCpe}x CPE/element(en).`,
+      description: description.trim() || `${isDataTemplate ? 'Data' : 'Voice'} template met ${totalCpe}x CPE/element(en).`,
       cpeCount: totalCpe,
       hostnamePrefix: isDataTemplate ? (elements.some(e => e.type === 'switch') ? 'Switch' : 'Router') : 'Mediant',
       hasWan: isDataTemplate ? (elements.some(e => e.type === 'router' || e.showWanIp) || true) : true,
@@ -1205,17 +1219,77 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
 
     saveCustomService(newDef);
     refreshList();
-    setFeedbackMsg({ text: `Dienst "${newDef.name}" (${newDef.code}) succesvol opgeslagen! Direct beschikbaar.` });
+    setLoadedServiceId(existingId);
+    setFeedbackMsg({ text: `Template "${newDef.name}" (${newDef.code}) succesvol opgeslagen! Direct beschikbaar.` });
+  };
 
-    setServiceName('');
-    setServiceCode('');
-    setDescription('');
+  // Aanvraag voor verwijderen: toont eerst het dialoogvenster met waarschuwing
+  const handleRequestDelete = (svc: CustomServiceDefinition) => {
+    setServiceToDelete(svc);
+  };
+
+  // Definitief verwijderen bevestigd door gebruiker
+  const handleConfirmDelete = () => {
+    if (!serviceToDelete) return;
+    if (serviceToDelete.isBuiltIn) {
+      setFeedbackMsg({ text: 'Ingebouwde standaardsystemen kunnen niet worden verwijderd.', isError: true });
+      setServiceToDelete(null);
+      return;
+    }
+
+    const deletedName = serviceToDelete.name;
+    const deletedCode = serviceToDelete.code;
+    deleteCustomService(serviceToDelete.id);
+    refreshList();
+
+    if (loadedServiceId === serviceToDelete.id) {
+      setLoadedServiceId(null);
+      setServiceName('');
+      setServiceCode('');
+      setDescription('');
+      setElements([]);
+      setSelectedIds([]);
+    }
+
+    setFeedbackMsg({ text: `Template "${deletedName}" (${deletedCode}) is definitief verwijderd.` });
+    setServiceToDelete(null);
+  };
+
+  const handleCancelDelete = () => {
+    setServiceToDelete(null);
+  };
+
+  // Template openen in studio
+  const handleLoadService = (svc: CustomServiceDefinition) => {
+    setLoadedServiceId(svc.isBuiltIn ? null : svc.id);
+    setServiceName(svc.name ? (svc.isBuiltIn ? `${svc.name} (Kopie)` : svc.name) : '');
+    setServiceCode(svc.code ? (svc.isBuiltIn ? `${svc.code}-CUSTOM` : svc.code) : '');
+    setDescription(svc.description || '');
+    setTemplateCategory(svc.category === 'data' ? 'data' : 'voice');
+    
+    if (svc.builderElements && svc.builderElements.length > 0) {
+      setElements(svc.builderElements);
+    } else {
+      setElements([]);
+    }
+    setSelectedIds([]);
+    setActiveTab('studio');
+    setFeedbackMsg({ 
+      text: svc.isBuiltIn 
+        ? `Standaard template "${svc.name}" geladen als basis voor een nieuw eigen template.` 
+        : `Template "${svc.name}" geladen in Studio.` 
+    });
   };
 
   const handleDeleteSaved = (id: string) => {
-    deleteCustomService(id);
-    refreshList();
-    setFeedbackMsg({ text: 'Dienst verwijderd.' });
+    const svc = servicesList.find(s => s.id === id);
+    if (svc) {
+      handleRequestDelete(svc);
+    } else {
+      deleteCustomService(id);
+      refreshList();
+      setFeedbackMsg({ text: 'Dienst verwijderd.' });
+    }
   };
 
   const getTargetName = (targetId?: string) => {
@@ -1768,6 +1842,7 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
                 selectedElement={selectedElement || null}
                 elements={elements}
                 darkMode={darkMode}
+                templateCategory={templateCategory}
                 handleDeleteSelected={handleDeleteSelected}
                 handleDuplicateElement={handleDuplicateElement}
                 handleDeleteElement={handleDeleteElement}
@@ -2334,6 +2409,7 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
                         placement={placement}
                         updateElement={updateElement}
                         elements={elements}
+                        templateCategory={templateCategory}
                         onSelect={() => {
                           setSelectedIds([el.id]);
                           setSelectedId(el.id);
@@ -2448,6 +2524,24 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
                 </div>
 
                 <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+                  {(() => {
+                    const loadedCustomService = servicesList.find(s => s.id === loadedServiceId && !s.isBuiltIn);
+                    if (loadedCustomService) {
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => handleRequestDelete(loadedCustomService)}
+                          className="px-3 py-2 rounded-xl text-xs font-bold text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/40 border border-red-200 dark:border-red-900/60 transition-colors cursor-pointer flex items-center gap-1.5"
+                          title="Deze geopende template definitief verwijderen (vereist bevestiging)"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                          <span>Template Verwijderen</span>
+                        </button>
+                      );
+                    }
+                    return null;
+                  })()}
+
                   <button
                     type="button"
                     onClick={onClose}
@@ -2458,14 +2552,16 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
                     Sluiten
                   </button>
 
-                  <button
-                    type="button"
-                    onClick={handleSaveNewService}
-                    className="px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-all cursor-pointer flex items-center gap-2 shrink-0"
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>Bevestigen &amp; Nieuwe Dienst Opslaan</span>
-                  </button>
+                  {serviceName.trim().length > 0 && elements.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={handleSaveNewService}
+                      className="px-5 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-md transition-all cursor-pointer flex items-center gap-2 shrink-0 animate-in fade-in duration-150"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>{loadedServiceId && servicesList.some(s => s.id === loadedServiceId && !s.isBuiltIn) ? 'Wijzigingen Opslaan' : 'Bevestigen & Nieuwe Dienst Opslaan'}</span>
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -2477,16 +2573,37 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
             serviceName={serviceName}
             elements={elements}
             scenario={currentScenario}
+            onUpdateScenario={(updated) => {
+              if (typeof updated.includeLocations === 'boolean') {
+                setIncludeLocations(updated.includeLocations);
+              }
+            }}
             onNavigateToStudio={() => setActiveTab('studio')}
           />
         ) : (
           <SavedServicesTab
             darkMode={darkMode}
             servicesList={servicesList}
-            setActiveTab={setActiveTab}
+            setActiveTab={(tab) => {
+              if (tab === 'studio') {
+                setLoadedServiceId(null);
+              }
+              setActiveTab(tab);
+            }}
+            onRequestDelete={handleRequestDelete}
+            onLoadService={handleLoadService}
             handleDeleteSaved={handleDeleteSaved}
           />
         )}
+
+        {/* Bevestigingsdialoog voor definitief verwijderen van een template */}
+        <ConfirmDeleteTemplateModal
+          isOpen={!!serviceToDelete}
+          service={serviceToDelete}
+          darkMode={darkMode}
+          onConfirm={handleConfirmDelete}
+          onCancel={handleCancelDelete}
+        />
 
       </div>
     </div>

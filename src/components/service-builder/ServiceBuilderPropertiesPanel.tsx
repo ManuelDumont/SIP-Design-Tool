@@ -7,6 +7,7 @@ interface ServiceBuilderPropertiesPanelProps {
   selectedElement: BuilderElement | null;
   elements: BuilderElement[];
   darkMode: boolean;
+  templateCategory?: 'voice' | 'data';
   handleDeleteSelected: () => void;
   handleDuplicateElement: (id: string) => void;
   handleDeleteElement: (id: string) => void;
@@ -22,6 +23,7 @@ export function ServiceBuilderPropertiesPanel({
   selectedElement,
   elements = [],
   darkMode,
+  templateCategory = 'voice',
   handleDeleteSelected,
   handleDuplicateElement,
   handleDeleteElement,
@@ -442,7 +444,7 @@ export function ServiceBuilderPropertiesPanel({
                 type="text"
                 value={selectedElement.label || ''}
                 onChange={e => updateElement(selectedElement.id, { label: e.target.value })}
-                placeholder="Bijv. Mediant 001, Core Router..."
+                placeholder="Geen label (leeg voor strak canvas)"
                 className={`w-full px-2.5 py-1 text-xs rounded border ${
                   darkMode ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300'
                 }`}
@@ -473,83 +475,93 @@ export function ServiceBuilderPropertiesPanel({
         )}
 
         {/* FIREWALL SPECIFIEKE UITLEG: ONBEKEND TERREIN QUA IP-ADRESSERING */}
-        {/* FIREWALL SPECIFIEKE UITLEG: ONBEKEND TERREIN QUA IP-ADRESSERING */}
         {selectedElement.type === 'firewall' && (
-          <div className="p-3 rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50/90 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 space-y-2 mt-2">
-            <div className="flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-300 text-xs">
-              <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
-              <span>Firewall: PBX-adres is terminerend adres</span>
+          templateCategory === 'data' ? (
+            <div className="p-3 rounded-lg border border-blue-300 dark:border-blue-700/60 bg-blue-50/90 dark:bg-blue-950/40 text-blue-900 dark:text-blue-200 space-y-2 mt-2">
+              <div className="flex items-center gap-1.5 font-bold text-blue-900 dark:text-blue-300 text-xs">
+                <ShieldAlert className="w-4 h-4 text-blue-600 shrink-0" />
+                <span>Firewall (Data Dienst): WAN IP is terminerend adres</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-blue-800/90 dark:text-blue-300/90">
+                Voor data diensten termineert de verbinding vóór de firewall op een <strong>WAN IP-adres</strong>. De firewall zelf en het achterliggende interne netwerk zijn <strong>klantbeheer / onbekend terrein</strong>. Er wordt géén PBX achter geplaatst.
+              </p>
             </div>
-            <p className="text-[11px] leading-relaxed text-amber-800/90 dark:text-amber-300/90">
-              Bij gebruik van een firewall door de klant is <strong>altijd het PBX-adres het adres waar we termineren vóór de firewall</strong>.
-              De firewall zelf en het achterliggende interne netwerk zijn <strong>onbekend terrein</strong> (klantbeheer). 
-              Er wordt <strong>géén fictief voorbeeldadres</strong> gebruikt.
-              Achter de firewall hangt wellicht nog een LAN-wolk waar een PBX achter hangt, of een PBX direct achter de firewall.
-            </p>
+          ) : (
+            <div className="p-3 rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50/90 dark:bg-amber-950/40 text-amber-900 dark:text-amber-200 space-y-2 mt-2">
+              <div className="flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-300 text-xs">
+                <ShieldAlert className="w-4 h-4 text-amber-600 shrink-0" />
+                <span>Firewall (Voice Dienst): PBX-adres is terminerend adres</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-amber-800/90 dark:text-amber-300/90">
+                Bij gebruik van een voice firewall door de klant is <strong>altijd het PBX-adres het adres waar we termineren vóór de firewall</strong>.
+                De firewall zelf en het achterliggende interne netwerk zijn <strong>onbekend terrein</strong> (klantbeheer). 
+                Er wordt <strong>géén fictief voorbeeldadres</strong> gebruikt.
+              </p>
 
-            {(() => {
-              const pbxEl = elements.find(e => e.type === 'pbx');
-              if (!pbxEl) return null;
-              const pbxIp = pbxEl.lanIp || pbxEl.wanIp;
-              return (
-                <div className="p-2 bg-amber-100/70 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-700 rounded text-[11px] flex items-center justify-between gap-2">
-                  <div className="min-w-0">
-                    <span className="font-semibold block truncate">Gekoppelde PBX: {pbxEl.label || 'SIP PBX'}</span>
-                    <span className="font-mono text-[10px] text-amber-900/80 dark:text-amber-200/80">
-                      {pbxIp ? `PBX IP: ${pbxIp}` : 'Nog geen IP ingevuld op PBX'}
-                    </span>
+              {(() => {
+                const pbxEl = elements.find(e => e.type === 'pbx');
+                if (!pbxEl) return null;
+                const pbxIp = pbxEl.lanIp || pbxEl.wanIp;
+                return (
+                  <div className="p-2 bg-amber-100/70 dark:bg-amber-900/40 border border-amber-300 dark:border-amber-700 rounded text-[11px] flex items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <span className="font-semibold block truncate">Gekoppelde PBX: {pbxEl.label || 'SIP PBX'}</span>
+                      <span className="font-mono text-[10px] text-amber-900/80 dark:text-amber-200/80">
+                        {pbxIp ? `PBX IP: ${pbxIp}` : 'Nog geen IP ingevuld op PBX'}
+                      </span>
+                    </div>
+                    {pbxIp && pbxIp !== selectedElement.wanIp && (
+                      <button
+                        type="button"
+                        onClick={() => updateElement(selectedElement.id, { wanIp: pbxIp })}
+                        className="shrink-0 px-2 py-1 text-[10px] font-bold bg-amber-600 hover:bg-amber-700 text-white rounded cursor-pointer transition-colors shadow-2xs"
+                        title="PBX-adres overnemen als terminerend adres vóór de firewall"
+                      >
+                        Overnemen
+                      </button>
+                    )}
                   </div>
-                  {pbxIp && pbxIp !== selectedElement.wanIp && (
+                );
+              })()}
+
+              {onAddBehindFirewall && (
+                <div className="pt-2 border-t border-amber-200/80 dark:border-amber-800/60 space-y-1.5">
+                  <span className="text-[10px] font-bold text-amber-950 dark:text-amber-200 uppercase tracking-wider block">
+                    Achter de firewall plaatsen:
+                  </span>
+                  <div className="grid grid-cols-1 gap-1.5">
                     <button
                       type="button"
-                      onClick={() => updateElement(selectedElement.id, { wanIp: pbxIp })}
-                      className="shrink-0 px-2 py-1 text-[10px] font-bold bg-amber-600 hover:bg-amber-700 text-white rounded cursor-pointer transition-colors shadow-2xs"
-                      title="PBX-adres overnemen als terminerend adres vóór de firewall"
+                      onClick={() => onAddBehindFirewall(selectedElement.id, 'direct-pbx')}
+                      className="w-full py-1.5 px-2.5 rounded text-[11px] font-semibold text-amber-900 dark:text-amber-100 bg-white/95 dark:bg-slate-800 hover:bg-amber-100/80 dark:hover:bg-slate-750 border border-amber-300 dark:border-amber-700 flex items-center justify-between cursor-pointer transition-colors shadow-2xs"
                     >
-                      Overnemen
+                      <span className="flex items-center gap-1.5">
+                        <Phone className="w-3.5 h-3.5 text-amber-600" />
+                        <span>+ PBX direct achter Firewall</span>
+                      </span>
+                      <span className="text-[9px] text-amber-700 dark:text-amber-400 font-mono">1-klik</span>
                     </button>
-                  )}
-                </div>
-              );
-            })()}
 
-            {onAddBehindFirewall && (
-              <div className="pt-2 border-t border-amber-200/80 dark:border-amber-800/60 space-y-1.5">
-                <span className="text-[10px] font-bold text-amber-950 dark:text-amber-200 uppercase tracking-wider block">
-                  Achter de firewall plaatsen:
-                </span>
-                <div className="grid grid-cols-1 gap-1.5">
-                  <button
-                    type="button"
-                    onClick={() => onAddBehindFirewall(selectedElement.id, 'direct-pbx')}
-                    className="w-full py-1.5 px-2.5 rounded text-[11px] font-semibold text-amber-900 dark:text-amber-100 bg-white/95 dark:bg-slate-800 hover:bg-amber-100/80 dark:hover:bg-slate-750 border border-amber-300 dark:border-amber-700 flex items-center justify-between cursor-pointer transition-colors shadow-2xs"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-amber-600" />
-                      <span>+ PBX direct achter Firewall</span>
-                    </span>
-                    <span className="text-[9px] text-amber-700 dark:text-amber-400 font-mono">1-klik</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => onAddBehindFirewall(selectedElement.id, 'cloud-pbx')}
-                    className="w-full py-1.5 px-2.5 rounded text-[11px] font-semibold text-amber-900 dark:text-amber-100 bg-white/95 dark:bg-slate-800 hover:bg-amber-100/80 dark:hover:bg-slate-750 border border-amber-300 dark:border-amber-700 flex items-center justify-between cursor-pointer transition-colors shadow-2xs"
-                  >
-                    <span className="flex items-center gap-1.5">
-                      <Layers className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>+ LAN-wolk &amp; PBX achter Firewall</span>
-                    </span>
-                    <span className="text-[9px] text-amber-700 dark:text-amber-400 font-mono">1-klik</span>
-                  </button>
+                    <button
+                      type="button"
+                      onClick={() => onAddBehindFirewall(selectedElement.id, 'cloud-pbx')}
+                      className="w-full py-1.5 px-2.5 rounded text-[11px] font-semibold text-amber-900 dark:text-amber-100 bg-white/95 dark:bg-slate-800 hover:bg-amber-100/80 dark:hover:bg-slate-750 border border-amber-300 dark:border-amber-700 flex items-center justify-between cursor-pointer transition-colors shadow-2xs"
+                    >
+                      <span className="flex items-center gap-1.5">
+                        <Layers className="w-3.5 h-3.5 text-indigo-600" />
+                        <span>+ LAN-wolk &amp; PBX achter Firewall</span>
+                      </span>
+                      <span className="text-[9px] text-amber-700 dark:text-amber-400 font-mono">1-klik</span>
+                    </button>
+                  </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
+          )
         )}
 
-        {/* PBX SPECIFIEKE UITLEG ALS ER EEN FIREWALL IN HET ONTWERP IS */}
-        {selectedElement.type === 'pbx' && elements.some(e => e.type === 'firewall') && (
+        {/* PBX SPECIFIEKE UITLEG ALS ER EEN FIREWALL IN HET ONTWERP IS (ALLEEN VOICE) */}
+        {selectedElement.type === 'pbx' && templateCategory !== 'data' && elements.some(e => e.type === 'firewall') && (
           <div className="p-2.5 rounded-lg border border-amber-300 dark:border-amber-700/60 bg-amber-50/90 dark:bg-amber-950/30 text-amber-900 dark:text-amber-200 space-y-1.5 mt-2">
             <div className="flex items-center gap-1.5 font-bold text-amber-900 dark:text-amber-300 text-xs">
               <ShieldAlert className="w-3.5 h-3.5 text-amber-600 shrink-0" />
@@ -569,7 +581,9 @@ export function ServiceBuilderPropertiesPanel({
             <div className="flex items-center justify-between border-b pb-1.5 border-slate-200 dark:border-slate-700">
               <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 flex items-center gap-1">
                 <Network className="w-3.5 h-3.5" />
-                {selectedElement.type === 'firewall' ? 'Terminerend PBX-adres (vóór FW)' : 'WAN & LAN IP-Adressen'}
+                {selectedElement.type === 'firewall' 
+                  ? (templateCategory === 'data' ? 'Terminerend WAN IP (vóór FW)' : 'Terminerend PBX-adres (vóór FW)')
+                  : 'WAN & LAN IP-Adressen'}
               </span>
               <span className="text-[9px] text-slate-400 font-medium">Canvas weergave</span>
             </div>
@@ -585,7 +599,9 @@ export function ServiceBuilderPropertiesPanel({
                     className="rounded border-slate-300 text-blue-600 focus:ring-blue-500 w-3 h-3 cursor-pointer"
                   />
                   <span>
-                    {selectedElement.type === 'firewall' ? 'PBX-adres (terminerend vóór FW)' : 'WAN IP-adres'}
+                    {selectedElement.type === 'firewall' 
+                      ? (templateCategory === 'data' ? 'WAN IP-adres (terminerend vóór FW)' : 'PBX-adres (terminerend vóór FW)') 
+                      : 'WAN IP-adres'}
                   </span>
                 </label>
                 <span className="text-[9px] text-slate-400 font-mono">
@@ -598,22 +614,24 @@ export function ServiceBuilderPropertiesPanel({
                 onChange={e => {
                   const val = e.target.value;
                   updateElement(selectedElement.id, { wanIp: val });
-                  // Als dit een firewall is, synchroniseer ook met de gekoppelde PBX
-                  if (selectedElement.type === 'firewall') {
+                  // Als dit een voice firewall is, synchroniseer ook met de gekoppelde PBX
+                  if (selectedElement.type === 'firewall' && templateCategory !== 'data') {
                     const pbxEl = elements.find(el => el.type === 'pbx');
                     if (pbxEl) {
                       updateElement(pbxEl.id, { lanIp: val });
                     }
                   }
                 }}
-                placeholder={selectedElement.type === 'firewall' ? 'PBX IP-adres (terminerend vóór FW)' : 'IP-adres'}
+                placeholder="x.x.x.x"
                 className={`w-full px-2.5 py-1 text-xs rounded border font-mono ${
                   darkMode ? 'bg-slate-950 border-slate-700 text-blue-300' : 'bg-white border-slate-300 text-blue-900'
                 }`}
               />
               {selectedElement.type === 'firewall' && (
-                <p className="text-[9px] text-amber-700/90 dark:text-amber-400/90 leading-tight">
-                  Het PBX-adres is altijd het adres waar getermineerd wordt vóór de firewall. Geen voorbeeldadres.
+                <p className="text-[9px] text-slate-500 dark:text-slate-400 leading-tight">
+                  {templateCategory === 'data' 
+                    ? 'Het WAN IP-adres termineert vóór de firewall. Geen voorbeeldadres (x.x.x.x).' 
+                    : 'Het PBX-adres is altijd het adres waar getermineerd wordt vóór de firewall. Geen voorbeeldadres.'}
                 </p>
               )}
             </div>

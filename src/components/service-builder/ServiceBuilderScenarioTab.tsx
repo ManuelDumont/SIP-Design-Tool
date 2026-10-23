@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BuilderElement, IntakeScenario } from '../../types';
 import { exportIntakeScenarioToText } from './serviceBuilderScenario';
 import { 
-  Building2, Hash, MapPin, Network, Server, Shield, 
-  Copy, Check, FileText, HelpCircle, CheckCircle2, 
-  ArrowRight, AlertCircle, Sparkles, Sliders
+  Building2, Hash, MapPin, Server, Shield, 
+  Copy, Check, ChevronDown, ChevronRight,
+  Phone, Network, Edit2, RotateCcw, ArrowRight, Plus
 } from 'lucide-react';
 
 interface ServiceBuilderScenarioTabProps {
@@ -16,6 +16,24 @@ interface ServiceBuilderScenarioTabProps {
   onNavigateToStudio: () => void;
 }
 
+const SUBNETS = [
+  "255.255.255.252 (/30)",
+  "255.255.255.248 (/29)",
+  "255.255.255.240 (/28)",
+  "255.255.255.224 (/27)",
+  "255.255.255.192 (/26)",
+  "255.255.255.128 (/25)",
+  "255.255.255.0 (/24)",
+  "255.255.254.0 (/23)",
+  "255.255.252.0 (/22)",
+  "255.255.248.0 (/21)",
+  "255.255.240.0 (/20)",
+  "255.255.224.0 (/19)",
+  "255.255.192.0 (/18)",
+  "255.255.128.0 (/17)",
+  "255.255.0.0 (/16)",
+];
+
 export function ServiceBuilderScenarioTab({
   darkMode,
   serviceName,
@@ -25,110 +43,229 @@ export function ServiceBuilderScenarioTab({
   onNavigateToStudio
 }: ServiceBuilderScenarioTabProps) {
   const [copied, setCopied] = useState<boolean>(false);
-  const [testValues, setTestValues] = useState<Record<string, string>>({
-    customerName: 'Acme Logistics B.V.',
-    projectNumber: 'PRJ20241',
-    locations: 'Hoofdkantoor Utrecht, Hub Rotterdam'
-  });
-  const [viewMode, setViewMode] = useState<'overview' | 'test-form'>('overview');
+  
+  // Locatie vraag kan aan of uitgezet worden
+  const [includeLocations, setIncludeLocations] = useState<boolean>(
+    scenario.includeLocations !== false
+  );
+
+  useEffect(() => {
+    if (typeof scenario.includeLocations === 'boolean') {
+      setIncludeLocations(scenario.includeLocations);
+    }
+  }, [scenario.includeLocations]);
+
+  // Weergave: 'form' (direct het formulier zoals bij VOV) of 'steps' (de intake stappen)
+  const [activeView, setActiveView] = useState<'form' | 'steps'>('form');
+
+  // Intake flow stappen (bij 'steps' weergave)
+  const [activeStep, setActiveStep] = useState<1 | 2 | 3 | 4>(1);
+
+  // Formulier waarden identiek aan het configuratiepaneel van de applicatie (starten leeg zonder vooringevulde voorbeelddata)
+  const [customerName, setCustomerName] = useState<string>('');
+  const [projectNumber, setProjectNumber] = useState<string>('');
+  const [locationName, setLocationName] = useState<string>('');
+  const [isEditingCustomer, setIsEditingCustomer] = useState<boolean>(false);
+  const [showDemarc, setShowDemarc] = useState<boolean>(false);
+
+  // Dynamische CPE's op basis van elementen op het canvas
+  const cpeElements = elements.filter(e => 
+    e.type === 'mediant' || e.type === 'router' || e.type === 'switch'
+  );
+
+  const effectiveCpes = cpeElements.length > 0 ? cpeElements : [
+    {
+      id: 'default-cpe-1',
+      type: 'mediant' as const,
+      label: 'Mediant 1',
+      x: 0,
+      y: 0
+    }
+  ];
+
+  // Gegevens per CPE (starten leeg)
+  const [cpeValues, setCpeValues] = useState<Record<string, {
+    hostname: string;
+    wanIp: string;
+    lanIp: string;
+    subnet: string;
+    gateway: string;
+    pbxIp?: string;
+    firewallIp?: string;
+    cnWanIp?: string;
+    cnLanIp?: string;
+  }>>({});
+
+  useEffect(() => {
+    setCpeValues(prev => {
+      const next = { ...prev };
+      effectiveCpes.forEach((cpe, idx) => {
+        if (!next[cpe.id]) {
+          next[cpe.id] = {
+            hostname: cpe.label || (cpe.type === 'router' ? `ROUTER 0${idx + 1}` : `MEDIANT 0${idx + 1}`),
+            wanIp: '',
+            lanIp: '',
+            subnet: '255.255.255.0 (/24)',
+            gateway: '',
+            pbxIp: '',
+            firewallIp: '',
+            cnWanIp: '',
+            cnLanIp: ''
+          };
+        }
+      });
+      return next;
+    });
+  }, [elements]);
+
+  const [expandedCpeId, setExpandedCpeId] = useState<string | null>(effectiveCpes[0]?.id || null);
+
+  const hasPbx = elements.some(e => e.type === 'pbx');
+  const hasFirewall = elements.some(e => e.type === 'firewall');
+  const hasCn = elements.some(e => (e.label || '').toUpperCase().includes('CN'));
+
+  const handleToggleLocations = (val: boolean) => {
+    setIncludeLocations(val);
+    if (onUpdateScenario) {
+      onUpdateScenario({
+        ...scenario,
+        includeLocations: val,
+        locationsRequired: false
+      });
+    }
+  };
 
   const handleCopyText = () => {
-    const text = exportIntakeScenarioToText(scenario, serviceName || 'Nieuwe Dienst');
+    const text = exportIntakeScenarioToText(
+      { ...scenario, includeLocations, locationsRequired: false },
+      serviceName || 'VOV'
+    );
     navigator.clipboard.writeText(text);
     setCopied(true);
     setTimeout(() => setCopied(false), 3000);
   };
 
-  const handleTestValueChange = (key: string, val: string) => {
-    setTestValues(prev => ({ ...prev, [key]: val }));
+  const handleResetToDefaults = () => {
+    setCustomerName('');
+    setProjectNumber('');
+    setLocationName('');
+    setIsEditingCustomer(false);
+    setActiveStep(1);
   };
 
-  const generalQuestions = scenario.questions.filter(q => q.category === 'general');
-  const technicalQuestions = scenario.questions.filter(q => q.category !== 'general');
-
-  // Groepeer technische vragen per element
-  const groupedTech: Record<string, { type?: string; elementId?: string; questions: typeof technicalQuestions }> = {};
-  technicalQuestions.forEach(q => {
-    const key = q.elementName || 'Overig';
-    if (!groupedTech[key]) {
-      groupedTech[key] = {
-        type: q.elementType,
-        elementId: q.elementId,
-        questions: []
-      };
-    }
-    groupedTech[key].questions.push(q);
-  });
-
-  const getElementIcon = (type?: string) => {
-    switch (type) {
-      case 'router': return <Network className="w-4 h-4 text-blue-500" />;
-      case 'mediant': return <Server className="w-4 h-4 text-sky-500" />;
-      case 'firewall': return <Shield className="w-4 h-4 text-red-500" />;
-      case 'pbx': return <Server className="w-4 h-4 text-amber-500" />;
-      case 'cloud': return <Network className="w-4 h-4 text-indigo-500" />;
-      default: return <Sliders className="w-4 h-4 text-slate-500" />;
-    }
+  const updateCpeField = (cpeId: string, field: string, val: string) => {
+    setCpeValues(prev => ({
+      ...prev,
+      [cpeId]: {
+        ...prev[cpeId],
+        [field]: val
+      }
+    }));
   };
+
+  const inputClass = `w-full border rounded px-3 py-1.5 text-sm focus:ring-1 focus:ring-blue-500 font-mono transition-colors ${
+    darkMode 
+      ? 'bg-slate-800 border-slate-700 text-slate-100 placeholder-slate-500' 
+      : 'bg-white border-slate-300 text-slate-800 placeholder-slate-400'
+  }`;
+  const labelClass = `block text-[11px] font-semibold mb-1 ${darkMode ? 'text-slate-400' : 'text-slate-500'}`;
+  const sectionClass = `text-sm font-bold border-b pb-2 mb-3 mt-4 ${
+    darkMode ? 'text-slate-200 border-slate-800' : 'text-slate-700 border-slate-100'
+  }`;
 
   return (
-    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-6">
-      {/* BOVENBALK: Titel en actieknoppen */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-b pb-4 border-slate-200 dark:border-slate-800">
-        <div>
-          <div className="flex items-center gap-2">
-            <div className="p-1.5 rounded-lg bg-blue-600 text-white shadow-xs">
-              <FileText className="w-4 h-4" />
-            </div>
-            <h3 className="text-base font-bold">
-              Uitvraagscenario &amp; Intake Checklist
-            </h3>
-            <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-              {technicalQuestions.length} IP-vragen gekoppeld
-            </span>
+    <div className="flex-1 overflow-y-auto p-4 md:p-6 space-y-4">
+      {/* BOVENBALK: Dienstnaam, weergave-toggle en acties */}
+      <div className={`p-4 rounded-2xl border flex flex-col md:flex-row md:items-center justify-between gap-4 transition-colors ${
+        darkMode ? 'bg-slate-850 border-slate-800' : 'bg-white border-slate-200 shadow-xs'
+      }`}>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-xl bg-blue-600 text-white flex items-center justify-center shadow-xs shrink-0">
+            <Server className="w-4 h-4" />
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-2xl leading-relaxed">
-            Als u elementen aan het canvas toevoegt waar IP-adressen voor nodig zijn (routers, medianten, firewalls, PBXen), wordt hier automatisch het bijbehorende uitvraagscenario opgebouwd. <strong>Sowieso altijd klantnaam, projectnummer en locatie(s)</strong>.
-          </p>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="font-mono text-xs font-bold px-2 py-0.5 rounded bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300">
+                {serviceName || 'VOV'}
+              </span>
+              <h3 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                Uitvraagscenario &amp; Configuratie
+              </h3>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Exacte weergave zoals de dienst wordt geconfigureerd in het zijpaneel
+            </p>
+          </div>
         </div>
 
-        <div className="flex items-center gap-2 shrink-0">
-          <div className="bg-slate-200 dark:bg-slate-800 p-0.5 rounded-lg flex items-center text-xs font-semibold">
+        {/* Midden / Rechts: Locatie schakelaar, Weergave switcher, Kopieerknop */}
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* Locatie Aan / Uit Schakelaar */}
+          <div className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs ${
+            darkMode ? 'bg-slate-900 border-slate-750' : 'bg-slate-50 border-slate-200'
+          }`}>
+            <MapPin className="w-3.5 h-3.5 text-blue-500" />
+            <span className="font-semibold text-slate-700 dark:text-slate-300">Locatie</span>
+            <span className={`text-[11px] font-bold ${includeLocations ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'}`}>
+              {includeLocations ? 'Aan' : 'Uit'}
+            </span>
             <button
               type="button"
-              onClick={() => setViewMode('overview')}
-              className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-                viewMode === 'overview'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+              role="switch"
+              aria-checked={includeLocations}
+              onClick={() => handleToggleLocations(!includeLocations)}
+              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                includeLocations ? 'bg-blue-600' : darkMode ? 'bg-slate-700' : 'bg-slate-300'
+              }`}
+              title="Locatie-uitvraag in- of uitschakelen"
+            >
+              <span
+                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                  includeLocations ? 'translate-x-4' : 'translate-x-0'
+                }`}
+              />
+            </button>
+          </div>
+
+          {/* Weergave Tabs */}
+          <div className={`p-1 rounded-xl border flex text-xs font-semibold ${
+            darkMode ? 'bg-slate-900 border-slate-750' : 'bg-slate-100 border-slate-200'
+          }`}>
+            <button
+              type="button"
+              onClick={() => setActiveView('form')}
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                activeView === 'form'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
-              Overzicht
+              Formulier
             </button>
             <button
               type="button"
-              onClick={() => setViewMode('test-form')}
-              className={`px-3 py-1 rounded-md transition-all cursor-pointer ${
-                viewMode === 'test-form'
-                  ? 'bg-white dark:bg-slate-700 text-slate-900 dark:text-white shadow-xs'
-                  : 'text-slate-500 hover:text-slate-900 dark:hover:text-slate-200'
+              onClick={() => setActiveView('steps')}
+              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                activeView === 'steps'
+                  ? 'bg-blue-600 text-white shadow-xs'
+                  : 'text-slate-600 dark:text-slate-400 hover:text-slate-900'
               }`}
             >
-              Test Formulier
+              Intakestappen
             </button>
           </div>
 
           <button
             type="button"
             onClick={handleCopyText}
-            className={`px-3.5 py-1.5 rounded-lg text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer flex items-center gap-1.5 ${
               copied
                 ? 'bg-emerald-600 text-white border-emerald-600 shadow-xs'
                 : darkMode
                   ? 'bg-slate-800 hover:bg-slate-750 text-slate-200 border-slate-700'
-                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-300 shadow-2xs'
+                  : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-2xs'
             }`}
-            title="Kopieer complete intake-checklist naar klembord voor e-mail of dossier"
+            title="Kopieer intake-checklist naar klembord"
           >
             {copied ? <Check className="w-3.5 h-3.5" /> : <Copy className="w-3.5 h-3.5" />}
             <span>{copied ? 'Gekopieerd!' : 'Kopieer Checklist'}</span>
@@ -136,294 +273,580 @@ export function ServiceBuilderScenarioTab({
         </div>
       </div>
 
-      {viewMode === 'overview' ? (
-        <div className="space-y-6">
-          {/* DEEL 1: ALTIJD VAN TOEPASSING (SOWIESO ALTIJD KLANTNAAM, PROJECTNUMMER, LOCATIE(S)) */}
-          <div className={`p-4.5 rounded-2xl border transition-all ${
-            darkMode ? 'bg-slate-850/80 border-slate-800' : 'bg-slate-50/90 border-slate-200 shadow-2xs'
+      {/* WEERGAVE 1: HET VOLLEDIGE FORMULIER (EXACT ZOALS IN DE ZIJBALK BIJ VOV) */}
+      {activeView === 'form' && (
+        <div className="flex justify-center">
+          <div className={`w-full max-w-[430px] rounded-2xl border shadow-lg overflow-hidden flex flex-col transition-colors ${
+            darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
           }`}>
-            <div className="flex items-center justify-between mb-3 border-b pb-2 border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg bg-blue-600 text-white text-xs font-bold flex items-center justify-center">
-                  1
-                </span>
-                <div>
-                  <h4 className="text-sm font-bold">
-                    Algemene Dossiergegevens (Sowieso Altijd)
-                  </h4>
-                  <p className="text-[11px] text-slate-400">
-                    Standaard verplichte basisvragen voor elke telecomopdracht conform KPN / operator standaarden
-                  </p>
+            {/* Klant & Project header compact (zoals in de echte zijbalk) */}
+            <div className={`px-4 py-2.5 border-b flex items-center justify-between shrink-0 ${
+              darkMode ? 'bg-slate-900 border-slate-800' : 'bg-slate-50 border-slate-200'
+            }`}>
+              <div className="flex items-center gap-2 overflow-hidden pr-2">
+                <Building2 className={`w-4 h-4 shrink-0 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                <div className="truncate">
+                  <div className="flex items-center gap-1.5 leading-tight">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Klant</span>
+                    <span className={`text-xs font-bold truncate ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+                      {customerName || 'Klantnaam'}
+                    </span>
+                  </div>
+                  {projectNumber && (
+                    <div className="flex items-center gap-1.5 leading-tight mt-0.5">
+                      <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Project</span>
+                      <span className={`text-[11px] font-semibold truncate ${darkMode ? 'text-slate-300' : 'text-slate-600'}`}>
+                        {projectNumber}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
-              <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                Altijd Verplicht
-              </span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              {/* Klantnaam */}
-              <div className={`p-3 rounded-xl border ${
-                darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-              }`}>
-                <div className="flex items-center gap-2 mb-1 text-blue-600 dark:text-blue-400">
-                  <Building2 className="w-4 h-4" />
-                  <span className="text-xs font-bold">Klantnaam</span>
-                </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Officiële handels- of bedrijfsnaam van de klantorganisatie.
-                </p>
-                <div className="mt-2 text-[10px] font-mono px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                  Veld: Tekstinvoer (Verplicht)
-                </div>
-              </div>
-
-              {/* Projectnummer */}
-              <div className={`p-3 rounded-xl border ${
-                darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-              }`}>
-                <div className="flex items-center gap-2 mb-1 text-indigo-600 dark:text-indigo-400">
-                  <Hash className="w-4 h-4" />
-                  <span className="text-xs font-bold">Projectnummer (8 tekens)</span>
-                </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Exact 8 tekens of cijfers (bijv. PRJ20241 of 12345678).
-                </p>
-                <div className="mt-2 text-[10px] font-mono px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                  Veld: Vaste 8-tekens code (Verplicht)
-                </div>
-              </div>
-
-              {/* Locatie(s) */}
-              <div className={`p-3 rounded-xl border ${
-                darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-              }`}>
-                <div className="flex items-center gap-2 mb-1 text-emerald-600 dark:text-emerald-400">
-                  <MapPin className="w-4 h-4" />
-                  <span className="text-xs font-bold">Locatie(s)</span>
-                </div>
-                <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                  Eén of meerdere vestigingen / aansluitadressen onder elkaar.
-                </p>
-                <div className="mt-2 text-[10px] font-mono px-2 py-1 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
-                  Veld: Lijst van locaties (Verplicht)
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* DEEL 2: ELEMENT-GEDREVEN IP-ADRES UITVRAAG */}
-          <div className={`p-4.5 rounded-2xl border transition-all ${
-            darkMode ? 'bg-slate-850/80 border-slate-800' : 'bg-slate-50/90 border-slate-200 shadow-2xs'
-          }`}>
-            <div className="flex items-center justify-between mb-3 border-b pb-2 border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2">
-                <span className="w-6 h-6 rounded-lg bg-blue-600 text-white text-xs font-bold flex items-center justify-center">
-                  2
-                </span>
-                <div>
-                  <h4 className="text-sm font-bold">
-                    Element &amp; IP-adres Uitvraag per Netwerkcomponent
-                  </h4>
-                  <p className="text-[11px] text-slate-400">
-                    Dynamisch gegenereerd op basis van de apparatuur op het canvas
-                  </p>
-                </div>
-              </div>
-              <button
+              <button 
                 type="button"
-                onClick={onNavigateToStudio}
-                className="text-xs font-bold text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 cursor-pointer"
+                onClick={() => setIsEditingCustomer(!isEditingCustomer)} 
+                className={`text-[11px] font-semibold hover:underline shrink-0 cursor-pointer flex items-center gap-1 ${
+                  darkMode ? 'text-blue-400' : 'text-blue-600'
+                }`}
               >
-                <span>Canvas bewerken</span>
-                <ArrowRight className="w-3.5 h-3.5" />
+                <Edit2 className="w-3 h-3" />
+                <span>{isEditingCustomer ? 'Sluiten' : 'Wijzigen'}</span>
               </button>
             </div>
 
-            {Object.keys(groupedTech).length === 0 ? (
-              <div className="p-8 text-center rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-slate-400 space-y-2">
-                <Network className="w-8 h-8 mx-auto opacity-40 text-blue-500" />
-                <p className="text-sm font-semibold">Nog geen netwerkelementen met IP-adressen op het canvas</p>
-                <p className="text-xs max-w-md mx-auto">
-                  Plaats in Templates een <strong>Router</strong>, <strong>Mediant</strong>, <strong>Firewall</strong>, <strong>SIP PBX</strong> of <strong>Wolk</strong>. Zodra u een element toevoegt, bouwt het systeem hier automatisch de uitvraagscenario&apos;s voor!
-                </p>
-                <button
-                  type="button"
-                  onClick={onNavigateToStudio}
-                  className="mt-2 px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold transition-all cursor-pointer"
-                >
-                  Naar Templates gaan
-                </button>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Object.entries(groupedTech).map(([elemName, group]) => (
-                  <div
-                    key={elemName}
-                    className={`p-3.5 rounded-xl border space-y-2.5 ${
-                      darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between border-b pb-2 border-slate-100 dark:border-slate-800">
-                      <div className="flex items-center gap-2">
-                        {getElementIcon(group.type)}
-                        <span className="text-xs font-bold text-slate-800 dark:text-slate-100">
-                          {elemName}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-950 text-blue-600 dark:text-blue-400">
-                        {group.questions.length} velden
-                      </span>
-                    </div>
-
-                    <div className="space-y-2">
-                      {group.questions.map(q => (
-                        <div
-                          key={q.id}
-                          className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800/60 border border-slate-150 dark:border-slate-700/60 text-xs space-y-1"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-semibold text-slate-700 dark:text-slate-300">
-                              {q.label}
-                            </span>
-                            <span className={`text-[10px] font-bold ${
-                              q.required ? 'text-blue-600 dark:text-blue-400' : 'text-slate-400'
-                            }`}>
-                              {q.required ? 'Verplicht' : 'Optioneel'}
-                            </span>
-                          </div>
-                          <div className="text-[11px] text-slate-400">
-                            {q.description}
-                          </div>
-                          <div className="text-[10px] font-mono text-slate-500">
-                            Voorbeeld: <span className="text-slate-700 dark:text-slate-300">{q.placeholder}</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+            {/* Klant & Projectnummer bewerken inline */}
+            {isEditingCustomer && (
+              <div className={`p-4 border-b space-y-3 ${
+                darkMode ? 'bg-slate-850 border-slate-800' : 'bg-blue-50/40 border-blue-100'
+              }`}>
+                <div>
+                  <label className={labelClass}>Klantnaam</label>
+                  <input
+                    type="text"
+                    value={customerName}
+                    onChange={e => setCustomerName(e.target.value)}
+                    placeholder="Klantnaam"
+                    className={inputClass}
+                  />
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <label className={labelClass}>Projectnummer</label>
+                    <span className="text-[10px] font-mono text-slate-400">{projectNumber.length}/8</span>
                   </div>
-                ))}
+                  <input
+                    type="text"
+                    maxLength={8}
+                    value={projectNumber}
+                    onChange={e => setProjectNumber(e.target.value.toUpperCase())}
+                    placeholder="PRJ12345"
+                    className={`${inputClass} font-mono uppercase`}
+                  />
+                </div>
               </div>
             )}
+
+            {/* Inhoud van het formulier */}
+            <div className="p-4 space-y-3 overflow-y-auto max-h-[70vh]">
+              {/* Locatie blok (indien ingeschakeld) */}
+              {includeLocations && (
+                <div className={`p-3 rounded-lg border space-y-1.5 transition-colors ${
+                  darkMode ? 'bg-slate-850 border-slate-800' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="flex items-center justify-between">
+                    <label className={`text-[10px] font-bold uppercase tracking-wider flex items-center gap-1.5 ${
+                      darkMode ? 'text-blue-400' : 'text-blue-700'
+                    }`}>
+                      <MapPin className="w-3.5 h-3.5" /> Locatienaam
+                    </label>
+                  </div>
+                  <input 
+                    type="text" 
+                    className={`w-full border rounded px-2.5 py-1.5 text-sm font-bold focus:ring-1 focus:ring-blue-500 transition-colors ${
+                      darkMode ? 'bg-slate-800 border-slate-700 text-slate-100 placeholder-slate-500' : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                    }`}
+                    placeholder="Locatienaam"
+                    value={locationName}
+                    onChange={e => setLocationName(e.target.value)}
+                  />
+                  <p className={`text-[10px] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Geef deze locatie een herkenbare naam.
+                  </p>
+                </div>
+              )}
+
+              {/* Demarcatielijn toggle */}
+              <div className={`p-2.5 rounded-lg border flex items-center justify-between transition-colors ${
+                darkMode ? 'bg-slate-800/60 border-slate-700/80' : 'bg-slate-50 border-slate-200'
+              }`}>
+                <div className="flex flex-col pr-2">
+                  <span className={`text-xs font-semibold ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                    Demarcatielijn
+                  </span>
+                  <span className={`text-[10px] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                    Toon de gestippelde scheidingslijn
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowDemarc(!showDemarc)}
+                  className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                    showDemarc ? 'bg-blue-600' : darkMode ? 'bg-slate-700' : 'bg-slate-300'
+                  }`}
+                  role="switch"
+                  aria-checked={showDemarc}
+                >
+                  <span
+                    className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-sm ring-0 transition duration-200 ease-in-out ${
+                      showDemarc ? 'translate-x-4' : 'translate-x-0'
+                    }`}
+                  />
+                </button>
+              </div>
+
+              {/* CPE's / Apparatuur Sectie */}
+              <div className="space-y-2 pt-1">
+                <div className={`flex items-center justify-between border-b pb-2 ${
+                  darkMode ? 'border-slate-800' : 'border-slate-200'
+                }`}>
+                  <span className={`text-xs font-bold uppercase tracking-wider ${darkMode ? 'text-slate-200' : 'text-slate-800'}`}>
+                    Apparatuur ({effectiveCpes.length})
+                  </span>
+                </div>
+
+                <div className="space-y-2.5">
+                  {effectiveCpes.map((cpe, cpeIndex) => {
+                    const isExpanded = expandedCpeId === cpe.id;
+                    const vals = cpeValues[cpe.id] || {
+                      hostname: cpe.label || `Mediant ${cpeIndex + 1}`,
+                      wanIp: '10.183.57.xxx',
+                      lanIp: '192.168.1.1',
+                      subnet: '255.255.255.0 (/24)',
+                      gateway: '192.168.1.254'
+                    };
+
+                    return (
+                      <div 
+                        key={cpe.id} 
+                        className={`border rounded-lg overflow-hidden shadow-xs transition-colors ${
+                          darkMode ? 'bg-slate-850 border-slate-800' : 'bg-white border-slate-200'
+                        }`}
+                      >
+                        {/* CPE Header accordion */}
+                        <div 
+                          className={`flex items-center justify-between p-2.5 cursor-pointer select-none transition-colors ${
+                            isExpanded 
+                              ? darkMode ? 'bg-slate-800 border-b border-slate-700' : 'bg-blue-50/50 border-b border-slate-200' 
+                              : darkMode ? 'hover:bg-slate-800/60' : 'hover:bg-slate-50'
+                          }`}
+                          onClick={() => setExpandedCpeId(isExpanded ? null : cpe.id)}
+                        >
+                          <div className="flex items-center gap-2">
+                            {isExpanded ? <ChevronDown className="w-4 h-4 text-slate-400" /> : <ChevronRight className="w-4 h-4 text-slate-400" />}
+                            <span className={`font-semibold text-xs ${darkMode ? 'text-slate-200' : 'text-slate-700'}`}>
+                              {vals.hostname}
+                            </span>
+                            <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${
+                              darkMode ? 'bg-slate-800 text-slate-300 border border-slate-700' : 'bg-slate-200 text-slate-600'
+                            }`}>
+                              {serviceName || 'VOV'}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* CPE Formulier Velden */}
+                        {isExpanded && (
+                          <div className={`p-3 space-y-3 ${darkMode ? 'bg-slate-900/40' : 'bg-white'}`}>
+                            {/* Hostname */}
+                            <div>
+                              <label className={labelClass}>Hostname</label>
+                              <input 
+                                type="text" 
+                                className={`${inputClass} uppercase`}
+                                placeholder="Bijv. MEDIANT-01"
+                                value={vals.hostname}
+                                onChange={e => updateCpeField(cpe.id, 'hostname', e.target.value.toUpperCase())}
+                              />
+                            </div>
+
+                            {/* Diensttype */}
+                            <div>
+                              <label className={labelClass}>Diensttype</label>
+                              <div className={`px-3 py-1.5 rounded border text-xs font-bold ${
+                                darkMode ? 'bg-slate-800 border-slate-700 text-blue-400' : 'bg-slate-50 border-slate-200 text-blue-600'
+                              }`}>
+                                {serviceName || 'VOV'}
+                              </div>
+                            </div>
+
+                            {/* Toegang / WAN IP */}
+                            <div>
+                              <label className={labelClass}>Toegang / WAN IP</label>
+                              <input 
+                                type="text" 
+                                className={inputClass}
+                                placeholder="10.183.57.xxx"
+                                value={vals.wanIp}
+                                onChange={e => updateCpeField(cpe.id, 'wanIp', e.target.value)}
+                              />
+                            </div>
+
+                            {/* IP-adressen Kop */}
+                            <h4 className={sectionClass}>IP-adressen</h4>
+
+                            {/* LAN IP & Subnet */}
+                            <div className="grid grid-cols-2 gap-2">
+                              <div>
+                                <label className={labelClass}>Voice LAN IP</label>
+                                <input 
+                                  type="text" 
+                                  className={inputClass}
+                                  placeholder="192.168.1.1"
+                                  value={vals.lanIp}
+                                  onChange={e => updateCpeField(cpe.id, 'lanIp', e.target.value)}
+                                />
+                              </div>
+                              <div>
+                                <label className={labelClass}>Subnetmasker</label>
+                                <select 
+                                  className={inputClass}
+                                  value={vals.subnet}
+                                  onChange={e => updateCpeField(cpe.id, 'subnet', e.target.value)}
+                                >
+                                  {SUBNETS.map(sub => (
+                                    <option key={sub} value={sub}>{sub}</option>
+                                  ))}
+                                </select>
+                              </div>
+                            </div>
+
+                            {/* Default Gateway */}
+                            <div>
+                              <label className={labelClass}>Default Gateway</label>
+                              <input 
+                                type="text" 
+                                className={inputClass}
+                                placeholder="192.168.1.254"
+                                value={vals.gateway}
+                                onChange={e => updateCpeField(cpe.id, 'gateway', e.target.value)}
+                              />
+                            </div>
+
+                            {/* PBX IP (indien PBX aanwezig) */}
+                            {hasPbx && (
+                              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1">
+                                <label className={labelClass}>SIP PBX IP-adres</label>
+                                <input 
+                                  type="text" 
+                                  className={inputClass}
+                                  placeholder="192.168.1.10"
+                                  value={vals.pbxIp || ''}
+                                  onChange={e => updateCpeField(cpe.id, 'pbxIp', e.target.value)}
+                                />
+                              </div>
+                            )}
+
+                            {/* Firewall IP (indien Firewall aanwezig) */}
+                            {hasFirewall && (
+                              <div className="pt-2 border-t border-slate-200 dark:border-slate-800 space-y-1">
+                                <label className={labelClass}>Firewall IP (Terminerend adres vóór FW)</label>
+                                <input 
+                                  type="text" 
+                                  className={inputClass}
+                                  placeholder="192.168.1.254"
+                                  value={vals.firewallIp || ''}
+                                  onChange={e => updateCpeField(cpe.id, 'firewallIp', e.target.value)}
+                                />
+                              </div>
+                            )}
+
+                            {/* CN IP's (indien CN aanwezig) */}
+                            {hasCn && (
+                              <div className={`p-2.5 rounded-lg border space-y-2 mt-2 ${
+                                darkMode ? 'bg-blue-950/30 border-blue-800/60' : 'bg-blue-50/70 border-blue-200'
+                              }`}>
+                                <div className="text-[11px] font-bold text-blue-600 dark:text-blue-400">
+                                  Corporate Net (CN) Instellingen
+                                </div>
+                                <div>
+                                  <label className={labelClass}>CN WAN IP</label>
+                                  <input 
+                                    type="text" 
+                                    className={inputClass}
+                                    placeholder="10.x.x.x"
+                                    value={vals.cnWanIp || ''}
+                                    onChange={e => updateCpeField(cpe.id, 'cnWanIp', e.target.value)}
+                                  />
+                                </div>
+                                <div>
+                                  <label className={labelClass}>CN LAN IP</label>
+                                  <input 
+                                    type="text" 
+                                    className={inputClass}
+                                    placeholder="192.168.x.x"
+                                    value={vals.cnLanIp || ''}
+                                    onChange={e => updateCpeField(cpe.id, 'cnLanIp', e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                            )}
+
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+            </div>
           </div>
         </div>
-      ) : (
-        /* TEST FORMULIER MODUS: Live interactief formulier zoals het er voor de gebruiker / engineer uitziet */
-        <div className={`p-5 rounded-2xl border max-w-2xl mx-auto space-y-5 ${
-          darkMode ? 'bg-slate-850 border-slate-700' : 'bg-white border-slate-200 shadow-sm'
-        }`}>
-          <div className="border-b pb-3 border-slate-200 dark:border-slate-700 flex items-center justify-between">
-            <div>
-              <h4 className="text-sm font-bold flex items-center gap-1.5">
-                <Sparkles className="w-4 h-4 text-blue-500" />
-                Live Simulatie van het Uitvraagformulier
-              </h4>
-              <p className="text-xs text-slate-400">
-                Zo ervaart een engineer of klant het invullen van deze dienst
-              </p>
-            </div>
-            <span className="text-[10px] font-mono bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 px-2 py-0.5 rounded-full font-bold">
-              Testmodus
-            </span>
-          </div>
+      )}
 
-          {/* Basisgegevens */}
-          <div className="space-y-3">
-            <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              1. Algemene Gegevens
-            </h5>
-            <div>
-              <label className="text-xs font-semibold block mb-1">
-                Klantnaam *
-              </label>
-              <input
-                type="text"
-                value={testValues.customerName || ''}
-                onChange={e => handleTestValueChange('customerName', e.target.value)}
-                placeholder="Bijv. Bedrijf B.V."
-                className={`w-full px-3 py-1.5 text-xs rounded-lg border ${
-                  darkMode ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300'
-                }`}
-              />
-            </div>
-
-            <div>
-              <div className="flex justify-between items-center mb-1">
-                <label className="text-xs font-semibold">
-                  Projectnummer (exact 8 tekens) *
-                </label>
-                <span className={`text-[10px] font-mono font-bold ${
-                  (testValues.projectNumber || '').length === 8 ? 'text-emerald-500' : 'text-slate-400'
-                }`}>
-                  {(testValues.projectNumber || '').length}/8 tekens
+      {/* WEERGAVE 2: STAP-VOOR-STAP INTAKE (KLANT → PROJECTNUMMER → LOCATIE → APPARATUUR) */}
+      {activeView === 'steps' && (
+        <div className="flex justify-center">
+          <div className={`w-full max-w-[430px] rounded-2xl border shadow-lg overflow-hidden flex flex-col transition-colors ${
+            darkMode ? 'bg-slate-900 border-slate-800' : 'bg-white border-slate-200'
+          }`}>
+            {/* Gekozen Dienst Badge bovenaan */}
+            <div className={`p-3 border-b flex items-center justify-between ${
+              darkMode ? 'bg-slate-850 border-slate-800' : 'bg-slate-50 border-slate-200'
+            }`}>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">Gekozen Dienst:</span>
+                <span className="text-xs font-bold text-blue-600 dark:text-blue-400">
+                  {serviceName || 'VOV'}
                 </span>
               </div>
-              <input
-                type="text"
-                maxLength={8}
-                value={testValues.projectNumber || ''}
-                onChange={e => handleTestValueChange('projectNumber', e.target.value.toUpperCase())}
-                placeholder="PRJ20241"
-                className={`w-full px-3 py-1.5 text-xs font-mono font-bold uppercase rounded-lg border ${
-                  darkMode ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300'
-                }`}
-              />
-            </div>
-
-            <div>
-              <label className="text-xs font-semibold block mb-1">
-                Locatie(s) *
-              </label>
-              <input
-                type="text"
-                value={testValues.locations || ''}
-                onChange={e => handleTestValueChange('locations', e.target.value)}
-                placeholder="Hoofdkantoor Utrecht"
-                className={`w-full px-3 py-1.5 text-xs rounded-lg border ${
-                  darkMode ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300'
-                }`}
-              />
-            </div>
-          </div>
-
-          {/* Technische velden */}
-          {technicalQuestions.length > 0 && (
-            <div className="space-y-3 pt-3 border-t border-slate-200 dark:border-slate-700">
-              <h5 className="text-xs font-bold uppercase tracking-wider text-slate-400">
-                2. IP-adressen &amp; Netwerkconfiguratie
-              </h5>
-
-              <div className="space-y-3">
-                {technicalQuestions.map(q => (
-                  <div key={q.id}>
-                    <div className="flex justify-between items-center mb-1">
-                      <label className="text-xs font-semibold">
-                        {q.label} {q.required && '*'}
-                      </label>
-                      <span className="text-[10px] text-slate-400 font-mono">
-                        {q.type.toUpperCase()}
-                      </span>
-                    </div>
-                    <input
-                      type="text"
-                      value={testValues[q.fieldKey] || ''}
-                      onChange={e => handleTestValueChange(q.fieldKey, e.target.value)}
-                      placeholder={q.placeholder}
-                      className={`w-full px-3 py-1.5 text-xs rounded-lg border font-mono ${
-                        darkMode ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-300'
-                      }`}
-                    />
-                    {q.description && (
-                      <p className="text-[10px] text-slate-400 mt-0.5">{q.description}</p>
-                    )}
-                  </div>
+              {/* Stap indicator */}
+              <div className="flex items-center gap-1">
+                {[1, 2, ...(includeLocations ? [3] : []), 4].map(s => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => setActiveStep(s as any)}
+                    className={`w-5 h-5 rounded-full text-[10px] font-bold flex items-center justify-center transition-all cursor-pointer ${
+                      activeStep === s
+                        ? 'bg-blue-600 text-white shadow-xs'
+                        : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                    }`}
+                  >
+                    {s}
+                  </button>
                 ))}
               </div>
             </div>
-          )}
 
-          <div className="pt-2 text-center text-xs text-slate-400">
-            Dit testformulier controleert de validatie en look &amp; feel van uw uitvraagscenario.
+            {/* STAP 1: Klantnaam */}
+            {activeStep === 1 && (
+              <div className="p-6 space-y-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Building2 className={`w-5 h-5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                  <h3 className={`text-base font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+                    Klant
+                  </h3>
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500 mb-1 block">Klantnaam</label>
+                  <input
+                    type="text"
+                    autoFocus
+                    placeholder="Bijv. Acme Logistics B.V."
+                    value={customerName}
+                    onChange={e => setCustomerName(e.target.value)}
+                    className={`w-full border rounded-lg px-3.5 py-2.5 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors ${
+                      darkMode 
+                        ? 'bg-slate-800 border-slate-700 text-slate-100 placeholder-slate-500' 
+                        : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                    }`}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveStep(2)}
+                  className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-3 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                >
+                  <span>Volgende: Projectnummer</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
+            {/* STAP 2: Projectnummer */}
+            {activeStep === 2 && (
+              <div className="p-6 space-y-4">
+                {/* Klant badge */}
+                <div className={`p-2.5 rounded-lg border flex items-center justify-between ${
+                  darkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-blue-500" />
+                    <span className="text-xs font-bold">{customerName || 'Klantnaam'}</span>
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setActiveStep(1)} 
+                    className="text-[11px] text-blue-500 hover:underline font-semibold cursor-pointer"
+                  >
+                    Wijzigen
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 mb-1">
+                  <Hash className={`w-5 h-5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                  <h3 className={`text-base font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+                    Projectnummer (8 tekens)
+                  </h3>
+                </div>
+                <p className="text-xs text-slate-400">
+                  Voer het 8-tekens dossier- of projectnummer in
+                </p>
+
+                <div className="relative">
+                  <input
+                    type="text"
+                    maxLength={8}
+                    autoFocus
+                    placeholder="PRJ12345"
+                    value={projectNumber}
+                    onChange={e => setProjectNumber(e.target.value.replace(/\s/g, '').slice(0, 8).toUpperCase())}
+                    className={`w-full border rounded-lg px-3.5 py-2.5 text-sm font-semibold tracking-wider font-mono uppercase focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors ${
+                      darkMode 
+                        ? 'bg-slate-800 border-slate-700 text-slate-100 placeholder-slate-500' 
+                        : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                    }`}
+                  />
+                  <span className="absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-semibold text-slate-400 font-mono">
+                    {projectNumber.length}/8
+                  </span>
+                </div>
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveStep(includeLocations ? 3 : 4)}
+                    className="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-3 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <span>Bevestigen</span>
+                    <ArrowRight className="w-3.5 h-3.5" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveStep(includeLocations ? 3 : 4)}
+                    className={`px-3 py-2.5 rounded-lg text-xs font-semibold border transition-colors cursor-pointer ${
+                      darkMode ? 'border-slate-700 text-slate-400 hover:bg-slate-800' : 'border-slate-200 text-slate-500 hover:bg-slate-100'
+                    }`}
+                  >
+                    Overslaan
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STAP 3: Locatie (indien ingeschakeld) */}
+            {activeStep === 3 && includeLocations && (
+              <div className="p-6 space-y-4">
+                {/* Klant en projectbadge */}
+                <div className={`p-2.5 rounded-lg border flex items-center justify-between ${
+                  darkMode ? 'bg-slate-800/60 border-slate-700' : 'bg-slate-50 border-slate-200'
+                }`}>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold uppercase text-slate-400">Klant</span>
+                      <span className="text-xs font-bold">{customerName || 'Klantnaam'}</span>
+                    </div>
+                    {projectNumber && (
+                      <div className="text-[11px] text-slate-400 mt-0.5">
+                        Project: <span className="font-mono font-semibold">{projectNumber}</span>
+                      </div>
+                    )}
+                  </div>
+                  <button 
+                    type="button" 
+                    onClick={() => setActiveStep(1)} 
+                    className="text-[11px] text-blue-500 hover:underline font-semibold cursor-pointer"
+                  >
+                    Wijzigen
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2 mb-1">
+                  <MapPin className={`w-5 h-5 ${darkMode ? 'text-blue-400' : 'text-blue-600'}`} />
+                  <div>
+                    <h3 className={`text-sm font-bold ${darkMode ? 'text-slate-100' : 'text-slate-800'}`}>
+                      Locatienaam toevoegen
+                    </h3>
+                    <p className={`text-[11px] ${darkMode ? 'text-slate-400' : 'text-slate-500'}`}>
+                      Geef een vestiging of site op
+                    </p>
+                  </div>
+                </div>
+
+                <input
+                  type="text"
+                  autoFocus
+                  placeholder="Locatienaam"
+                  value={locationName}
+                  onChange={e => setLocationName(e.target.value)}
+                  className={`w-full border rounded-lg px-3.5 py-2.5 text-sm font-semibold focus:ring-2 focus:ring-blue-500 focus:outline-none transition-colors ${
+                    darkMode 
+                      ? 'bg-slate-800 border-slate-700 text-slate-100 placeholder-slate-500' 
+                      : 'bg-white border-slate-300 text-slate-900 placeholder-slate-400'
+                  }`}
+                />
+
+                <div className="space-y-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveStep(4)}
+                    className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2.5 px-3 rounded-lg text-xs transition-all flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Locatie toevoegen &amp; Apparatuur configureren</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setLocationName('');
+                      setActiveStep(4);
+                    }}
+                    className={`w-full text-center text-[11px] font-medium py-1 hover:underline cursor-pointer ${
+                      darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-500 hover:text-slate-800'
+                    }`}
+                  >
+                    Doorgaan zonder locatie
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* STAP 4: Voltooide configuratie (doorverwijzing naar het formulier) */}
+            {activeStep === 4 && (
+              <div className="p-6 text-center space-y-4">
+                <div className="w-12 h-12 rounded-2xl bg-blue-100 dark:bg-blue-950 text-blue-600 dark:text-blue-400 flex items-center justify-center mx-auto shadow-xs">
+                  <Server className="w-6 h-6" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-slate-900 dark:text-slate-100">
+                    Dossier Klaargezet
+                  </h4>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 max-w-xs mx-auto">
+                    Klant, projectnummer {includeLocations ? 'en locatie' : ''} zijn ingegeven. De apparatuurparameters kunnen direct ingevuld worden.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setActiveView('form')}
+                  className="px-4 py-2 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs transition-all cursor-pointer inline-flex items-center gap-1.5"
+                >
+                  <span>Open Volledig Formulier</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            )}
+
           </div>
         </div>
       )}

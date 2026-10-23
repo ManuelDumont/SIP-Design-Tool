@@ -55,8 +55,8 @@ export function getElementBoundaryPoint(
       const ch = el.height || 90;
       const cx = el.x;
       const cy = el.y;
-      const rx = Math.max(25, (cw - 8) / 2);
-      const ry = Math.max(18, (ch - 8) / 2);
+      const rx = Math.max(25, (cw - 4) / 2);
+      const ry = Math.max(18, (ch - 4) / 2);
       if (preferredSide === 'left') return { x: Math.round(cx - rx), y: Math.round(cy) };
       if (preferredSide === 'right') return { x: Math.round(cx + rx), y: Math.round(cy) };
       if (preferredSide === 'top') return { x: Math.round(cx), y: Math.round(cy - ry) };
@@ -85,11 +85,11 @@ export function getElementBoundaryPoint(
     case 'access-point':
       return getBoxBorderPoint(el.x, el.y, 40 * scale, 40 * scale, otherPoint.x, otherPoint.y, preferredSide);
     case 'pbx':
-      return getBoxBorderPoint(el.x, el.y, 41 * scale, 37 * scale, otherPoint.x, otherPoint.y, preferredSide);
+      return getBoxBorderPoint(el.x, el.y, 40 * scale, 36 * scale, otherPoint.x, otherPoint.y, preferredSide);
     case 'firewall':
       return getBoxBorderPoint(el.x, el.y, 50 * scale, 36 * scale, otherPoint.x, otherPoint.y, preferredSide);
     case 'phone':
-      return getBoxBorderPoint(el.x, el.y, 30 * scale, 28 * scale, otherPoint.x, otherPoint.y, preferredSide);
+      return getBoxBorderPoint(el.x, el.y, 38 * scale, 36 * scale, otherPoint.x, otherPoint.y, preferredSide);
     case 'text': {
       const textW = el.width || Math.max(50, Math.min(480, (el.customText?.length || 4) * 8 + 24));
       const textH = el.height || 36;
@@ -469,13 +469,8 @@ export function calculateOptimalBadgesPlacement(
   const showLan = el.showLanIp ?? (el.type === 'mediant' || el.type === 'pbx' || el.type === 'switch' || el.type === 'server' || (el.type === 'firewall' ? false : Boolean(el.lanIp)));
   const hasIp = (showWan || showLan) && ['mediant', 'router', 'firewall', 'pbx', 'sbc', 'switch', 'server', 'workstation', 'access-point'].includes(el.type);
 
-  // 2. Bepaal of naam getoond moet worden
-  const hasName = Boolean(
-    (el.label && el.label.trim() && 
-      (el.type !== 'phone' || el.label !== 'IP Phone') && 
-      (el.type !== 'router' || (el.label !== 'Core Router' && el.label !== ''))
-    ) || (['mediant', 'pbx', 'firewall', 'sbc', 'switch', 'server', 'workstation', 'access-point'].includes(el.type) && Boolean(el.label))
-  );
+  // 2. Bepaal of naam getoond moet worden: alleen als de gebruiker daadwerkelijk een benaming/label heeft ingevuld
+  const hasName = Boolean(el.label && el.label.trim().length > 0);
 
   // Indien element geen van beide toont, default waarden
   if (!hasIp && !hasName) {

@@ -1,18 +1,22 @@
 import React from 'react';
 import { CustomServiceDefinition } from '../../types';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, Sliders, Copy } from 'lucide-react';
 
 interface SavedServicesTabProps {
   darkMode: boolean;
   servicesList: CustomServiceDefinition[];
-  setActiveTab: (tab: 'studio' | 'saved') => void;
-  handleDeleteSaved: (id: string) => void;
+  setActiveTab: (tab: 'studio' | 'scenario' | 'saved') => void;
+  onRequestDelete: (service: CustomServiceDefinition) => void;
+  onLoadService?: (service: CustomServiceDefinition) => void;
+  handleDeleteSaved?: (id: string) => void;
 }
 
 export function SavedServicesTab({
   darkMode,
   servicesList,
   setActiveTab,
+  onRequestDelete,
+  onLoadService,
   handleDeleteSaved
 }: SavedServicesTabProps) {
   const [filterCategory, setFilterCategory] = React.useState<'all' | 'voice' | 'data'>('all');
@@ -22,6 +26,14 @@ export function SavedServicesTab({
     if (filterCategory === 'data') return s.category === 'data';
     return s.category !== 'data';
   });
+
+  const handleDeleteClick = (svc: CustomServiceDefinition) => {
+    if (onRequestDelete) {
+      onRequestDelete(svc);
+    } else if (handleDeleteSaved) {
+      handleDeleteSaved(svc.id);
+    }
+  };
 
   return (
     <div className="flex-1 overflow-y-auto p-6 space-y-4">
@@ -140,18 +152,39 @@ export function SavedServicesTab({
               </div>
             </div>
 
-            {!svc.isBuiltIn && (
-              <div className="flex items-center justify-end gap-2 pt-3 mt-3 border-t border-slate-200 dark:border-slate-700">
+            <div className="flex items-center justify-between gap-2 pt-3 mt-3 border-t border-slate-200 dark:border-slate-750">
+              {onLoadService && (
                 <button
                   type="button"
-                  onClick={() => handleDeleteSaved(svc.id)}
-                  className="text-xs text-red-600 hover:text-red-700 flex items-center gap-1 font-semibold cursor-pointer"
+                  onClick={() => onLoadService(svc)}
+                  className={`text-xs px-2.5 py-1.5 rounded-lg border font-semibold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    darkMode 
+                      ? 'bg-slate-750 hover:bg-slate-700 text-slate-200 border-slate-650' 
+                      : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+                  }`}
+                  title="Open dit template in de studio om het te bekijken of te bewerken"
                 >
-                  <Trash2 className="w-3.5 h-3.5" />
-                  <span>Verwijderen</span>
+                  {svc.isBuiltIn ? <Copy className="w-3.5 h-3.5 text-blue-500" /> : <Sliders className="w-3.5 h-3.5 text-blue-500" />}
+                  <span>{svc.isBuiltIn ? 'Als basis laden' : 'Bewerken in Studio'}</span>
                 </button>
-              </div>
-            )}
+              )}
+
+              {!svc.isBuiltIn ? (
+                <button
+                  type="button"
+                  onClick={() => handleDeleteClick(svc)}
+                  className="text-xs px-2.5 py-1.5 rounded-lg border border-red-200 dark:border-red-900/60 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 flex items-center gap-1.5 font-bold transition-all cursor-pointer ml-auto"
+                  title="Template definitief verwijderen (vereist bevestiging)"
+                >
+                  <Trash2 className="w-3.5 h-3.5 text-red-500" />
+                  <span>Template Verwijderen</span>
+                </button>
+              ) : (
+                <span className="text-[10px] text-slate-400 italic ml-auto select-none">
+                  Ingebouwd template
+                </span>
+              )}
+            </div>
           </div>
         ))}
       </div>

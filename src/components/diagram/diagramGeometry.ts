@@ -18,24 +18,45 @@ export function isCombiServiceWithCn(serviceType?: string, multicustomerVariant?
 }
 
 export function areCpesInSameLanSubnet(cpeA: any, cpeB: any): boolean {
+  if (!cpeA || !cpeB) return false;
+
+  // Multicustomer CPEs in de zelfde locatie (of Esprit) horen ALTIJD bij hetzelfde Customer LAN cluster
+  const isMultiA = Boolean(
+    cpeA.isMulticustomer || 
+    cpeA.serviceType === 'Multicustomer' || 
+    cpeA.serviceType === 'Multicustomer - Esprit' || 
+    cpeA.serviceType === 'Multicustomer Esprit' || 
+    cpeA.serviceType?.startsWith('Multicustomer') ||
+    cpeA.multicustomerClient
+  );
+  const isMultiB = Boolean(
+    cpeB.isMulticustomer || 
+    cpeB.serviceType === 'Multicustomer' || 
+    cpeB.serviceType === 'Multicustomer - Esprit' || 
+    cpeB.serviceType === 'Multicustomer Esprit' || 
+    cpeB.serviceType?.startsWith('Multicustomer') ||
+    cpeB.multicustomerClient
+  );
+
+  if (isMultiA || isMultiB) {
+    return true;
+  }
+
   const cidrA = getCidrFromSubnetString(cpeA.lanSubnet);
   const cidrB = getCidrFromSubnetString(cpeB.lanSubnet);
   
-  if (cidrA === null || cidrB === null || cidrA !== cidrB) {
-    return false;
-  }
-
   const ipA = (cpeA.serviceType === 'CN' && cpeA.cnLanIp) ? cpeA.cnLanIp : cpeA.lanIpCpe;
   const ipB = (cpeB.serviceType === 'CN' && cpeB.cnLanIp) ? cpeB.cnLanIp : cpeB.lanIpCpe;
 
   // If both have valid IPv4 LAN IPs
-  if (isValidIPv4(ipA) && isValidIPv4(ipB)) {
+  if (isValidIPv4(ipA) && isValidIPv4(ipB) && cidrA !== null && cidrA === cidrB) {
     return isInSameSubnet(ipA, ipB, cidrA);
   }
 
-  // If neither has an IP yet, but they have identical subnet masks
-  if (!ipA && !ipB && cpeA.lanSubnet === cpeB.lanSubnet) {
-    return true;
+  // If neither has a valid IP yet, or placeholder IPs, cluster them together if subnets match or neither has distinct subnet
+  if (!isValidIPv4(ipA) && !isValidIPv4(ipB)) {
+    if (!cpeA.lanSubnet && !cpeB.lanSubnet) return true;
+    if (cpeA.lanSubnet === cpeB.lanSubnet) return true;
   }
 
   return false;
@@ -44,26 +65,81 @@ export function areCpesInSameLanSubnet(cpeA: any, cpeB: any): boolean {
 export function generateCloudPath(w: number, h: number): string {
   const cx = w / 2;
   const cy = h / 2;
-  // Ovale/ronde basis-ellips
-  const rx = Math.max(80, (w - 36) / 2);
-  const ry = Math.max(48, (h - 48) / 2);
-  const numLobes = Math.max(10, Math.round((w + h) / 45));
-  const halfStep = Math.PI / numLobes;
+  const rx = Math.max(50, (w - 36) / 2);
+  const ry = Math.max(20, (h - 32) / 2);
 
-  // Genereer punten langs een vloeiende ovale/ronde wolk-ellips
-  // Door te starten bij -PI/2 - halfStep zit de bovenste ronde wolkboog exact gecentreerd op 12 uur
+  // Standaard LAN wolken (w <= 280) zijn puur rond/oval.
+  // Alleen bij bredere clusters met meerdere CPE's (w > 280) wordt het bovenvlak verbreed voor level aansluiting.
+  const flatHalf = Math.max(0, (w - 280) / 2);
+
+  if (flatHalf <= 10) {
+    // Standaard ronde/ovale wolk voor compacte breedtes
+    const numLobes = Math.max(12, Math.round((w + h) / 32));
+    const halfStep = Math.PI / numLobes;
+    const points: { x: number; y: number }[] = [];
+    for (let i = 0; i < numLobes; i++) {
+      const angle = -Math.PI / 2 - halfStep + (2 * Math.PI * i) / numLobes;
+      const px = cx + rx * Math.cos(angle);
+      const py = cy + ry * Math.sin(angle);
+      points.push({ x: px, y: py });
+    }
+
+    let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} `;
+    for (let i = 0; i < numLobes; i++) {
+      const p1 = points[i];
+      const p2 = points[(i + 1) % numLobes];
+      const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
+      const r = dist * 0.68;
+      d += `A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${p2.x.toFixed(1)} ${p2.y.toFixed(1)} `;
+    }
+    d += 'Z';
+    return d;
+  }
+
+  // Brede wolk (multi-customer / multi-CPE):
+  // Gebruikt een perfect symmetrische, zachte capsule/stadium-vorm met ronde bolle zijkanten
+  // terwijl het bovenvlak horizontaal recht blijft voor apparaten.
+  const targetDist = 32;
+  const topWidth = 2 * flatHalf;
+  const numTop = Math.max(2, Math.round(topWidth / targetDist));
+  const capRx = rx - flatHalf;
+  const numCap = Math.max(4, Math.round((Math.PI * Math.hypot(capRx, ry)) / (2 * targetDist)));
+  const numBot = numTop;
+
   const points: { x: number; y: number }[] = [];
-  for (let i = 0; i < numLobes; i++) {
-    const angle = -Math.PI / 2 - halfStep + (2 * Math.PI * i) / numLobes;
-    const px = cx + rx * Math.cos(angle);
+
+  // 1. Horizontale bovenrand (van links naar rechts, y = cy - ry constant voor level aansluiting)
+  for (let i = 0; i < numTop; i++) {
+    const px = (cx - flatHalf) + (i * topWidth) / numTop;
+    points.push({ x: px, y: cy - ry });
+  }
+
+  // 2. Rechter ronde afdekboog (halve ellips van -PI/2 naar +PI/2)
+  for (let i = 0; i < numCap; i++) {
+    const angle = -Math.PI / 2 + (i * Math.PI) / numCap;
+    const px = cx + flatHalf + capRx * Math.cos(angle);
+    const py = cy + ry * Math.sin(angle);
+    points.push({ x: px, y: py });
+  }
+
+  // 3. Horizontale onderrand (van rechts naar links, y = cy + ry constant)
+  for (let i = 0; i < numBot; i++) {
+    const px = (cx + flatHalf) - (i * topWidth) / numBot;
+    points.push({ x: px, y: cy + ry });
+  }
+
+  // 4. Linker ronde afdekboog (halve ellips van +PI/2 naar +3PI/2)
+  for (let i = 0; i < numCap; i++) {
+    const angle = Math.PI / 2 + (i * Math.PI) / numCap;
+    const px = cx - flatHalf + capRx * Math.cos(angle);
     const py = cy + ry * Math.sin(angle);
     points.push({ x: px, y: py });
   }
 
   let d = `M ${points[0].x.toFixed(1)} ${points[0].y.toFixed(1)} `;
-  for (let i = 0; i < numLobes; i++) {
+  for (let i = 0; i < points.length; i++) {
     const p1 = points[i];
-    const p2 = points[(i + 1) % numLobes];
+    const p2 = points[(i + 1) % points.length];
     const dist = Math.hypot(p2.x - p1.x, p2.y - p1.y);
     const r = dist * 0.68;
     d += `A ${r.toFixed(1)} ${r.toFixed(1)} 0 0 1 ${p2.x.toFixed(1)} ${p2.y.toFixed(1)} `;
@@ -78,15 +154,23 @@ export function getCloudTopY(cluster: { width: number; height: number; centerX: 
   const w = cluster.width;
   const cx = w / 2;
   const cy = cluster.height / 2;
-  const rx = Math.max(80, (w - 36) / 2);
-  const ry = Math.max(48, (cluster.height - 48) / 2);
+  const ry = Math.max(20, (cluster.height - 32) / 2);
+  const flatHalf = Math.max(0, (w - 280) / 2);
 
   const relX = absX - (cluster.centerX - w / 2);
   const dx = Math.abs(relX - cx);
-  const normX = Math.min(1, dx / rx);
-  const ellipseY = ry * Math.sqrt(Math.max(0, 1 - normX * normX));
-  const puff = 18 * (1 - 0.2 * normX);
-  const y = Math.max(2, cy - ellipseY - puff);
+
+  let y: number;
+  if (dx <= flatHalf) {
+    // Exact dalniveau van de wolk randbogen op het brede bovenvlak (y = cy - ry)
+    y = cy - ry;
+  } else {
+    const distOutside = dx - flatHalf;
+    const rx = Math.max(50, (w - 36) / 2);
+    const normX = Math.min(1, distOutside / Math.max(1, rx - flatHalf));
+    const ellipseY = ry * Math.sqrt(Math.max(0, 1 - normX * normX));
+    y = cy - ellipseY;
+  }
 
   return cpeY + CLOUD_Y_OFFSET + cluster.yOffset + y;
 }
@@ -96,15 +180,24 @@ export function getCloudBottomY(cluster: { width: number; height: number; center
   const h = cluster.height;
   const cx = w / 2;
   const cy = h / 2;
-  const rx = Math.max(80, (w - 36) / 2);
-  const ry = Math.max(48, (h - 48) / 2);
+  const ry = Math.max(20, (h - 32) / 2);
+  const flatHalf = Math.max(0, (w - 280) / 2);
 
   const relX = absX - (cluster.centerX - w / 2);
   const dx = Math.abs(relX - cx);
-  const normX = Math.min(1, dx / rx);
-  const ellipseY = ry * Math.sqrt(Math.max(0, 1 - normX * normX));
-  const puff = 18 * (1 - 0.2 * normX);
-  const y = Math.min(h - 2, cy + ellipseY + puff);
+
+  let y: number;
+  if (dx <= flatHalf) {
+    const puff = 7;
+    y = cy + ry + puff;
+  } else {
+    const distOutside = dx - flatHalf;
+    const rx = Math.max(50, (w - 36) / 2);
+    const normX = Math.min(1, distOutside / Math.max(1, rx - flatHalf));
+    const ellipseY = ry * Math.sqrt(Math.max(0, 1 - normX * normX));
+    const puff = 7 * (1 - 0.2 * normX);
+    y = cy + ellipseY + puff;
+  }
 
   return cpeY + CLOUD_Y_OFFSET + cluster.yOffset + y;
 }
