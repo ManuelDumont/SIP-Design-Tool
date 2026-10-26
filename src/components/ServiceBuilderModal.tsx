@@ -63,6 +63,39 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
   const [loadedServiceId, setLoadedServiceId] = useState<string | null>(null);
   const [serviceToDelete, setServiceToDelete] = useState<CustomServiceDefinition | null>(null);
 
+  // Tekstveld vraag / prompt modal state bij toevoegen van tekst in het design
+  const [showTextPromptModal, setShowTextPromptModal] = useState<boolean>(false);
+  const [textPromptValue, setTextPromptValue] = useState<string>('');
+
+  const handleAddTextElement = (overrideText?: string) => {
+    const rawVal = overrideText !== undefined ? overrideText : textPromptValue;
+    const textLabel = rawVal.trim() || 'Tekstlabel';
+    const newId = `elem-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const centerX = 380;
+    const centerY = 230 + (elements.length * 20) % 150;
+
+    const newElem: BuilderElement = {
+      id: newId,
+      type: 'text',
+      x: centerX,
+      y: centerY,
+      width: undefined,
+      height: undefined,
+      scale: 1,
+      customText: textLabel,
+      label: textLabel,
+      fontSize: 'sm',
+      textAlign: 'center',
+      badgeStyle: 'badge-blue'
+    };
+
+    setElements(prev => [...prev, newElem]);
+    setSelectedId(newId);
+    setShowTextPromptModal(false);
+    setTextPromptValue('');
+    setFeedbackMsg({ text: `Tekstveld "${textLabel}" toegevoegd op het canvas.` });
+  };
+
   // Keuze tussen Voice of Data gerelateerde templates (stil overschakelen zonder hinderlijke notificatiebalk)
   const handleSelectCategory = (cat: 'voice' | 'data') => {
     if (cat === templateCategory) return;
@@ -556,20 +589,9 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
         break;
       }
       case 'text':
-        newElem = {
-          id: newId,
-          type: 'text',
-          x: centerX,
-          y: centerY,
-          width: undefined,
-          height: undefined,
-          scale: 1,
-          customText: '',
-          fontSize: 'sm',
-          textAlign: 'center',
-          badgeStyle: 'badge-blue'
-        };
-        break;
+        setTextPromptValue('');
+        setShowTextPromptModal(true);
+        return;
       default:
         return;
     }
@@ -2604,6 +2626,93 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
           onConfirm={handleConfirmDelete}
           onCancel={handleCancelDelete}
         />
+
+        {/* Tekstveld Vraag / Prompt Modal bij toevoegen van een tekstveld in het design */}
+        {showTextPromptModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className={`w-full max-w-md p-5 rounded-2xl shadow-2xl border space-y-4 ${
+              darkMode ? 'bg-slate-900 border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-800'
+            }`}>
+              <div className="flex items-center justify-between border-b pb-3 border-slate-200 dark:border-slate-700">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-lg bg-blue-100 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 flex items-center justify-center">
+                    <Type className="w-4 h-4" />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-bold">Tekstveld Toevoegen</h3>
+                    <p className="text-[11px] text-slate-500 dark:text-slate-400">Voer een label of opmerking in voor op het canvas</p>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowTextPromptModal(false)}
+                  className="p-1 rounded-lg text-slate-400 hover:text-slate-200 transition-colors cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 block">
+                  Label / Tekst inhoud *
+                </label>
+                <input
+                  type="text"
+                  autoFocus
+                  value={textPromptValue}
+                  onChange={e => setTextPromptValue(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleAddTextElement();
+                    }
+                  }}
+                  placeholder="Bijv. Demarcatiepunt, Klantlocatie, Opmerking..."
+                  className={`w-full px-3 py-2 text-sm rounded-xl border font-medium focus:ring-2 focus:ring-blue-500 outline-none transition-all ${
+                    darkMode ? 'bg-slate-800 border-slate-700 text-white placeholder-slate-500' : 'bg-slate-50 border-slate-300 text-slate-900 placeholder-slate-400'
+                  }`}
+                />
+
+                {/* Snelle suggestie badges */}
+                <div className="pt-1">
+                  <span className="text-[10px] text-slate-400 font-semibold block mb-1.5">Snelle suggesties:</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['Demarcatiepunt', 'Klantlocatie', 'WAN Oplevering', 'IP-Adres Blok', 'Opmerking'].map(sug => (
+                      <button
+                        key={sug}
+                        type="button"
+                        onClick={() => {
+                          setTextPromptValue(sug);
+                          handleAddTextElement(sug);
+                        }}
+                        className="px-2 py-1 rounded-lg text-[10px] font-bold bg-slate-100 dark:bg-slate-800 hover:bg-blue-100 dark:hover:bg-blue-950/80 text-slate-600 dark:text-slate-300 hover:text-blue-600 dark:hover:text-blue-300 transition-colors border border-slate-200 dark:border-slate-700 cursor-pointer"
+                      >
+                        + {sug}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2 pt-2 border-t border-slate-200 dark:border-slate-700">
+                <button
+                  type="button"
+                  onClick={() => setShowTextPromptModal(false)}
+                  className="px-3 py-1.5 rounded-xl text-xs font-semibold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300 cursor-pointer"
+                >
+                  Annuleren
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleAddTextElement()}
+                  className="px-4 py-1.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-700 text-white shadow-xs cursor-pointer transition-colors"
+                >
+                  Toevoegen op Canvas
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

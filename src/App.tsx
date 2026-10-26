@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { LocationConfig } from './types';
+import { LocationConfig, MulticustomerClient } from './types';
 import { LocationForm } from './components/LocationForm';
 import { NetworkDiagram } from './components/NetworkDiagram';
 import { ErrorBoundary } from './components/ErrorBoundary';
@@ -51,14 +51,18 @@ const createBlankLocation = (
 
 const createEspritLocation = (
   custName: string,
-  configNr = '001'
+  configNr = '001',
+  serviceCode = 'Multicustomer Esprit'
 ): LocationConfig => {
-  const cfg = getEspritConfigByNumber(configNr);
+  const clientName: MulticustomerClient = (serviceCode.includes('IP Voice Group') || serviceCode.includes('IP Services Group')) ? 'IP Voice Group' : 'Esprit';
+  const cfg = getEspritConfigByNumber(configNr, clientName);
+  const hostname006 = cfg.hostname006 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-006' : 'N2G-M4000-ASD-006');
+  const hostname007 = cfg.hostname007 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-002' : 'N2G-M4000-ASD-007');
   const cpe1 = {
     id: uuidv4(),
-    hostname: 'Mediant 006',
-    serviceType: 'Multicustomer - Esprit' as const,
-    multicustomerClient: 'Esprit' as const,
+    hostname: hostname006,
+    serviceType: serviceCode as any,
+    multicustomerClient: clientName,
     multicustomerVariant: 'VOV' as const,
     multicustomerConfigNr: cfg.configNr,
     wanIp: cfg.mediant006.wanIp,
@@ -75,9 +79,9 @@ const createEspritLocation = (
 
   const cpe2 = {
     id: uuidv4(),
-    hostname: 'Mediant 007',
-    serviceType: 'Multicustomer - Esprit' as const,
-    multicustomerClient: 'Esprit' as const,
+    hostname: hostname007,
+    serviceType: serviceCode as any,
+    multicustomerClient: clientName,
     multicustomerVariant: 'VOV' as const,
     multicustomerConfigNr: cfg.configNr,
     wanIp: cfg.mediant007.wanIp,
@@ -93,7 +97,7 @@ const createEspritLocation = (
     locationName: '',
     showDemarcationLine: false,
     isMulticustomer: true,
-    multicustomerClient: 'Esprit',
+    multicustomerClient: clientName,
     multicustomerConfigNr: cfg.configNr,
     cpes: [cpe1, cpe2]
   };
@@ -220,16 +224,58 @@ export default function App() {
 
   const isEspritService = selectedServiceCode === 'Multicustomer Esprit' || 
                           selectedServiceCode === 'Multicustomer - Esprit' || 
+                          selectedServiceCode === 'Multicustomer IP Voice Group' ||
+                          selectedServiceCode === 'Multicustomer - IP Voice Group' ||
+                          selectedServiceCode === 'Multicustomer IP Services Group' ||
+                          selectedServiceCode === 'Multicustomer - IP Services Group' ||
                           selectedServiceCode.startsWith('Multicustomer');
 
-  // Voor Multicustomer Esprit: nooit om locatie vragen; direct initialiseren zodra klantnaam en projectnummer ingevuld/overgeslagen zijn
+  // Voor Multicustomer Esprit / IP Services Group: nooit om locatie vragen; direct initialiseren zodra klantnaam en projectnummer ingevuld/overgeslagen zijn
   useEffect(() => {
     if (isEspritService && customerName && hasAskedProject && locations.length === 0) {
-      const espritLoc = createEspritLocation(customerName, '001');
+      const espritLoc = createEspritLocation(customerName, '001', selectedServiceCode);
       setLocations([espritLoc]);
       setActiveLocationId(espritLoc.id);
     }
-  }, [isEspritService, customerName, hasAskedProject, locations.length]);
+  }, [isEspritService, customerName, hasAskedProject, locations.length, selectedServiceCode]);
+
+  // Synchroniseer bestaande multicustomer locaties als geselecteerde dienst 'IP Voice Group' is
+  useEffect(() => {
+    if (selectedServiceCode.includes('IP Voice Group') || selectedServiceCode.includes('IP Services Group')) {
+      setLocations(prev => {
+        let changed = false;
+        const next = prev.map(loc => {
+          const isMulti = loc.isMulticustomer || (loc.cpes || []).some(c => c.isMulticustomer || c.serviceType?.startsWith('Multicustomer'));
+          if (isMulti && (loc.multicustomerClient !== 'IP Voice Group' || (loc.cpes || []).some(c => c.multicustomerClient !== 'IP Voice Group' || c.hostname.includes('N2G') || c.hostname.includes('Mediant')))) {
+            changed = true;
+            const cfg = getEspritConfigByNumber(loc.multicustomerConfigNr || '001', 'IP Voice Group');
+            return {
+              ...loc,
+              multicustomerClient: 'IP Voice Group' as MulticustomerClient,
+              cpes: (loc.cpes || []).map((c, idx) => {
+                const is006 = idx === 0 || c.hostname.includes('006') || c.hostname.includes('ASD-006');
+                const medData = is006 ? cfg.mediant006 : cfg.mediant007;
+                return {
+                  ...c,
+                  serviceType: 'Multicustomer IP Voice Group' as any,
+                  multicustomerClient: 'IP Voice Group' as MulticustomerClient,
+                  hostname: is006 ? 'UFC-M2600-ASD-006' : 'UFC-M2600-ASD-002',
+                  wanIp: medData.wanIp,
+                  lanIpCpe: medData.lanIp,
+                  defaultGateway: cfg.sipLanIpGw,
+                  ...(is006 && c.pbxs?.[0] ? {
+                    pbxs: [{ ...c.pbxs[0], ip: cfg.primaryPbxIp }]
+                  } : {})
+                };
+              })
+            };
+          }
+          return loc;
+        });
+        return changed ? next : prev;
+      });
+    }
+  }, [selectedServiceCode]);
 
   // Stap 2: Projectnummer opslaan (altijd exact 8 tekens/digits, letters altijd als hoofdletters)
   const handleConfirmProject = (e?: React.FormEvent) => {
@@ -239,7 +285,7 @@ export default function App() {
     setProjectNumber(cleaned);
     setHasAskedProject(true);
     if (isEspritService && locations.length === 0) {
-      const espritLoc = createEspritLocation(customerName, '001');
+      const espritLoc = createEspritLocation(customerName, '001', selectedServiceCode);
       setLocations([espritLoc]);
       setActiveLocationId(espritLoc.id);
     }
@@ -258,7 +304,7 @@ export default function App() {
     setHasAskedProject(true);
     setIsEditingCustomer(false);
     if (isEspritService && locations.length === 0) {
-      const espritLoc = createEspritLocation(trimmedCust, '001');
+      const espritLoc = createEspritLocation(trimmedCust, '001', selectedServiceCode);
       setLocations([espritLoc]);
       setActiveLocationId(espritLoc.id);
     } else {
@@ -1017,7 +1063,7 @@ export default function App() {
                         setInputProjectNumber('');
                         setHasAskedProject(true);
                         if (isEspritService && locations.length === 0) {
-                          const espritLoc = createEspritLocation(customerName, '001');
+                          const espritLoc = createEspritLocation(customerName, '001', selectedServiceCode);
                           setLocations([espritLoc]);
                           setActiveLocationId(espritLoc.id);
                         }

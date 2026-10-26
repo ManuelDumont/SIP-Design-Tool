@@ -13,6 +13,10 @@ export type ServiceType =
   | 'VOV + CN' 
   | 'Multicustomer Esprit'
   | 'Multicustomer - Esprit'
+  | 'Multicustomer IP Voice Group'
+  | 'Multicustomer - IP Voice Group'
+  | 'Multicustomer IP Services Group'
+  | 'Multicustomer - IP Services Group'
   | 'Multicustomer' 
   | 'Multicustomer VOV' 
   | 'Multicustomer VOV & CN' 
@@ -120,7 +124,7 @@ export interface CustomServiceDefinition {
   intakeScenario?: IntakeScenario;
 }
 
-export type MulticustomerClient = 'Esprit' | 'IP Voice Group Services BV' | 'PCC Omnia' | 'TSG' | '';
+export type MulticustomerClient = 'Esprit' | 'IP Voice Group' | 'IP Services Group' | 'IP Voice Group Services BV' | 'PCC Omnia' | 'TSG' | '';
 
 export interface CPEConfig {
   id: string;

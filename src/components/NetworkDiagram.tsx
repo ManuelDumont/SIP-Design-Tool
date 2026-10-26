@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { LocationConfig } from '../types';
+import { LocationConfig, MulticustomerClient } from '../types';
 import { Network, Download, RotateCcw, Save, Plus } from 'lucide-react';
 import { toPng } from 'html-to-image';
 import { getCidrFromSubnetString, isValidIPv4, isInSameSubnet, getSubnetNetworkAddress, padTo3Digits } from '../utils/ip';
@@ -175,7 +175,7 @@ export function NetworkDiagram({
     
     const locWithCpe = locations.find(l => (l.cpes || []).some(c => c.id === cpeId));
     const targetCpe = locWithCpe?.cpes?.find(c => c.id === cpeId);
-    const isEsprit = targetCpe && (targetCpe.serviceType === 'Multicustomer' || targetCpe.isMulticustomer) && (targetCpe.multicustomerClient === 'Esprit' || locWithCpe?.multicustomerClient === 'Esprit');
+    const isEsprit = Boolean(targetCpe && (targetCpe.serviceType === 'Multicustomer' || targetCpe.isMulticustomer || targetCpe.serviceType?.startsWith('Multicustomer') || targetCpe.multicustomerClient || locWithCpe?.multicustomerClient || locWithCpe?.isMulticustomer));
 
     if (isEsprit && field === 'wanIp') {
       const match = value.trim().match(/\.(\d{1,3})$/);
@@ -266,20 +266,30 @@ export function NetworkDiagram({
       const locHasMulti = loc.isMulticustomer || (loc.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer Esprit' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType?.startsWith('Multicustomer') || c.isMulticustomer);
       if (!locHasMulti) return loc;
 
-      const isEsprit = loc.multicustomerClient === 'Esprit' || (loc.cpes || []).some(c => c.multicustomerClient === 'Esprit' || c.serviceType === 'Multicustomer Esprit' || c.serviceType === 'Multicustomer - Esprit');
+      const clientName: MulticustomerClient = (
+        loc.multicustomerClient === 'IP Voice Group' || 
+        loc.multicustomerClient === 'IP Services Group' || 
+        (loc.cpes || []).some(c => c.multicustomerClient === 'IP Voice Group' || c.multicustomerClient === 'IP Services Group' || c.serviceType?.includes('IP Voice') || c.serviceType?.includes('IP Services'))
+      ) ? 'IP Voice Group' : 'Esprit';
 
-      if (isEsprit && field === 'multicustomerConfigNr') {
-        const espritCfg = getEspritConfigByNumber(cleanVal);
+      if (field === 'multicustomerConfigNr') {
+        const espritCfg = getEspritConfigByNumber(cleanVal, clientName);
         const cfg3 = espritCfg.configNr;
         return {
           ...loc,
+          multicustomerClient: clientName,
           multicustomerConfigNr: cfg3,
           cpes: (loc.cpes || []).map((cpe, idx) => {
-            if (cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer Esprit' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType?.startsWith('Multicustomer') || cpe.isMulticustomer) {
-              const is006 = idx === 0 || cpe.hostname.includes('006');
+            if (cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer Esprit' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType === 'Multicustomer IP Voice Group' || cpe.serviceType?.startsWith('Multicustomer') || cpe.isMulticustomer) {
+              const is006 = idx === 0 || cpe.hostname.includes('006') || cpe.hostname.includes('ASD-006');
               const medData = is006 ? espritCfg.mediant006 : espritCfg.mediant007;
+              const hostname = is006 
+                ? (espritCfg.hostname006 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-006' : 'Mediant 006'))
+                : (espritCfg.hostname007 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-002' : 'Mediant 007'));
               return {
                 ...cpe,
+                hostname,
+                multicustomerClient: clientName,
                 multicustomerConfigNr: cfg3,
                 wanIp: medData.wanIp,
                 lanIpCpe: medData.lanIp,
@@ -299,8 +309,6 @@ export function NetworkDiagram({
           })
         };
       }
-
-      const cfg3 = field === 'multicustomerConfigNr' ? (padTo3Digits(cleanVal) || '001') : (loc.multicustomerConfigNr || '001');
 
       return {
         ...loc,
@@ -436,30 +444,45 @@ export function NetworkDiagram({
   // Multicustomer info uitvragen over alle locaties/cpes
   const multicustomerInfo = (() => {
     for (const loc of locations) {
-      if (loc.isMulticustomer && loc.multicustomerClient) {
-        return {
-          client: loc.multicustomerClient,
-          configNr: loc.multicustomerConfigNr || '001',
-          trunkId: loc.multicustomerTrunkId || 'xxx',
-          cpeCount: loc.multicustomerCpeCount || (loc.cpes.length >= 2 ? 2 : 1),
-          locId: loc.id
-        };
-      }
-      const cpe = loc.cpes?.find(c => 
+      const allCpes = loc.cpes || [];
+      const hasIpVoiceCpe = allCpes.some(c => 
+        c.serviceType === 'Multicustomer IP Voice Group' || 
+        c.serviceType === 'Multicustomer - IP Voice Group' ||
+        c.serviceType?.includes('IP Voice Group') ||
+        c.serviceType?.includes('IP Services Group') ||
+        c.multicustomerClient === 'IP Voice Group' ||
+        c.multicustomerClient === 'IP Services Group'
+      );
+
+      const cpe = allCpes.find(c => 
         c.serviceType === 'Multicustomer' || 
         c.serviceType === 'Multicustomer - Esprit' || 
         c.serviceType === 'Multicustomer Esprit' || 
+        c.serviceType === 'Multicustomer IP Voice Group' || 
+        c.serviceType === 'Multicustomer - IP Voice Group' || 
+        c.serviceType === 'Multicustomer IP Services Group' || 
+        c.serviceType === 'Multicustomer - IP Services Group' || 
         c.serviceType?.startsWith('Multicustomer') || 
         c.isMulticustomer || 
-        c.multicustomerClient === 'Esprit'
+        c.multicustomerClient
       );
-      if (cpe) {
+
+      if (loc.isMulticustomer || cpe) {
+        let client: MulticustomerClient = 'Esprit';
+        if (hasIpVoiceCpe || loc.multicustomerClient === 'IP Voice Group' || loc.multicustomerClient === 'IP Services Group' || cpe?.multicustomerClient === 'IP Voice Group' || cpe?.multicustomerClient === 'IP Services Group') {
+          client = 'IP Voice Group';
+        } else if (cpe?.multicustomerClient) {
+          client = cpe.multicustomerClient;
+        } else if (loc.multicustomerClient) {
+          client = loc.multicustomerClient;
+        }
+
         return {
-          client: cpe.multicustomerClient || loc.multicustomerClient || 'Esprit',
-          configNr: cpe.multicustomerConfigNr || loc.multicustomerConfigNr || '001',
-          trunkId: cpe.multicustomerTrunkId || loc.multicustomerTrunkId || 'xxx',
-          cpeCount: cpe.multicustomerCpeCount || (loc.cpes.length >= 2 ? 2 : 1),
-          cpeId: cpe.id,
+          client,
+          configNr: cpe?.multicustomerConfigNr || loc.multicustomerConfigNr || '001',
+          trunkId: cpe?.multicustomerTrunkId || loc.multicustomerTrunkId || 'xxx',
+          cpeCount: cpe?.multicustomerCpeCount || (allCpes.length >= 2 ? 2 : 1),
+          cpeId: cpe?.id,
           locId: loc.id
         };
       }
@@ -467,12 +490,23 @@ export function NetworkDiagram({
     return null;
   })();
 
-  const isEspritMulti = multicustomerInfo?.client === 'Esprit' || locations.some(loc => 
+  const isEspritMulti = Boolean(multicustomerInfo) || locations.some(loc => 
+    loc.isMulticustomer || 
     loc.multicustomerClient === 'Esprit' || 
+    loc.multicustomerClient === 'IP Voice Group' || 
+    loc.multicustomerClient === 'IP Services Group' || 
     (loc.cpes || []).some(c => 
+      c.isMulticustomer ||
       c.multicustomerClient === 'Esprit' || 
+      c.multicustomerClient === 'IP Voice Group' || 
+      c.multicustomerClient === 'IP Services Group' || 
       c.serviceType === 'Multicustomer Esprit' || 
-      c.serviceType === 'Multicustomer - Esprit'
+      c.serviceType === 'Multicustomer - Esprit' ||
+      c.serviceType === 'Multicustomer IP Voice Group' ||
+      c.serviceType === 'Multicustomer - IP Voice Group' ||
+      c.serviceType === 'Multicustomer IP Services Group' ||
+      c.serviceType === 'Multicustomer - IP Services Group' ||
+      c.serviceType?.startsWith('Multicustomer')
     )
   );
 
@@ -497,8 +531,6 @@ export function NetworkDiagram({
   );
   const servicesText = allServices.join(' & ');
 
-  // Titel in de rode bovenbalk: "SIP Design" blijft standaard staan,
-  // Voor Esprit Multicustomer wordt de titel conform verzoek: "Esprit  MultiCustomer: " + klantnaam
   const customerParts: string[] = [];
   if (effectiveCustomerName.trim()) {
     customerParts.push(effectiveCustomerName.trim());
@@ -507,8 +539,10 @@ export function NetworkDiagram({
     customerParts.push(effectiveProjectNumber.trim());
   }
 
+  const activeClientName = multicustomerInfo?.client || (locations.some(l => l.multicustomerClient === 'IP Services Group' || (l.cpes || []).some(c => c.serviceType?.includes('IP Services Group') || c.multicustomerClient === 'IP Services Group')) ? 'IP Services Group' : 'Esprit');
+
   const headerTitle = isEspritMulti
-    ? `Esprit MultiCustomer: ${effectiveCustomerName.trim()}${effectiveProjectNumber.trim() ? ` - ${effectiveProjectNumber.trim()}` : ''}`
+    ? `${activeClientName} MultiCustomer: ${effectiveCustomerName.trim()}${effectiveProjectNumber.trim() ? ` - ${effectiveProjectNumber.trim()}` : ''}`
     : (customerParts.length > 0
         ? `SIP Design - ${customerParts.join(' - ')}`
         : 'SIP Design');
@@ -785,7 +819,7 @@ export function NetworkDiagram({
       }
 
       const isVovCn = isCombiServiceWithCn(cpe.serviceType, cpe.multicustomerVariant);
-      const isEsprit = (cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType?.startsWith('Multicustomer') || cpe.isMulticustomer) && (cpe.multicustomerClient === 'Esprit' || loc.multicustomerClient === 'Esprit');
+      const isEsprit = Boolean(cpe.isMulticustomer || loc.isMulticustomer || cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType === 'Multicustomer Esprit' || cpe.serviceType === 'Multicustomer IP Services Group' || cpe.serviceType?.startsWith('Multicustomer') || cpe.multicustomerClient || loc.multicustomerClient);
       const hasGw = !isEsprit && (Boolean(cpe.defaultGateway && cpe.defaultGateway.trim()) || routedPbxs.length > 0);
       
       // Gateway basispositie gekoppeld aan cpeX, beweegt mee met de cluster maar kan ook individueel versleept worden
@@ -859,6 +893,7 @@ export function NetworkDiagram({
       yOffset: number;
       isMulti: boolean;
       isEsprit?: boolean;
+      clientName?: MulticustomerClient;
       configNr3?: string;
     }[] = [];
 
@@ -883,8 +918,7 @@ export function NetworkDiagram({
       const isMulti = clusterCpes.length > 1;
       
       const isEspritCluster = clusterCpes.some(c => 
-        (c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType?.startsWith('Multicustomer') || c.isMulticustomer) &&
-        (c.multicustomerClient === 'Esprit' || loc.multicustomerClient === 'Esprit')
+        Boolean(c.isMulticustomer || loc.isMulticustomer || c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType === 'Multicustomer Esprit' || c.serviceType === 'Multicustomer IP Services Group' || c.serviceType?.startsWith('Multicustomer') || c.multicustomerClient || loc.multicustomerClient)
       );
 
       const firstCpe = clusterCpes[0];
@@ -913,8 +947,13 @@ export function NetworkDiagram({
       });
 
       let subnetLabel = clusterCpes[0]?.lanSubnet || 'xxx.xxx.xxx.0/24';
+      const clusterClient: MulticustomerClient = (
+        clusterCpes.find(c => c.multicustomerClient)?.multicustomerClient || 
+        loc.multicustomerClient || 
+        (clusterCpes.some(c => c.serviceType?.includes('IP Voice') || c.serviceType?.includes('IP Services')) ? 'IP Voice Group' : 'Esprit')
+      );
       if (isEspritCluster) {
-        subnetLabel = '10.20.0.0/22';
+        subnetLabel = (clusterClient === 'IP Voice Group' || clusterClient === 'IP Services Group') ? '10.69.68.0/22' : '10.20.0.0/22';
       } else if (firstWithValidIp) {
         const ip = (firstWithValidIp.serviceType === 'CN' && firstWithValidIp.cnLanIp) ? firstWithValidIp.cnLanIp : firstWithValidIp.lanIpCpe;
         const cidr = getCidrFromSubnetString(firstWithValidIp.lanSubnet);
@@ -936,6 +975,7 @@ export function NetworkDiagram({
         yOffset: clusterCloudYOffset,
         isMulti,
         isEsprit: isEspritCluster,
+        clientName: isEspritCluster ? clusterClient : undefined,
         configNr3
       });
     }
@@ -1184,7 +1224,7 @@ export function NetworkDiagram({
                 <div className="text-white text-2xl font-medium tracking-tight flex items-center gap-2">
                   {isEspritMulti ? (
                     <>
-                      <span className="font-semibold whitespace-nowrap">Esprit MultiCustomer:</span>
+                      <span className="font-semibold whitespace-nowrap">{activeClientName} MultiCustomer:</span>
                       <InlineEdit 
                         value={effectiveCustomerName} 
                         placeholder="Klantnaam" 
@@ -1475,79 +1515,16 @@ export function NetworkDiagram({
             })()}
           </div>
 
-          {/* Multicustomer Mediant Extra Tekstblok (Alleen Esprit N2G) */}
-          {multicustomerInfo && (() => {
-            const allMappedCpes = groups.flatMap(g => g.cpes);
-            const targetCpeForCard = allMappedCpes.find(c => c.hostname?.includes('007')) || (allMappedCpes.length > 1 ? allMappedCpes[1] : allMappedCpes[0]);
-            const defaultCardLeft = targetCpeForCard ? (targetCpeForCard.cpeX + 50) : (TOTAL_WIDTH - 300);
-            // CORE_Y is 100 en ellips is 120 hoog (onderrand op 220px). Met top op 240px staat het blok gegarandeerd ruim onder de wolk en ruim boven Mediant 007 (460px).
-            const defaultCardTop = 240;
-
-            return (
-              <div 
-                className={`absolute z-35 select-none p-3.5 rounded-xl border-2 shadow-lg cursor-grab active:cursor-grabbing transition-all ${
-                  darkMode 
-                    ? 'bg-slate-900/95 border-blue-500/70 text-slate-100 shadow-blue-950/40' 
-                    : 'bg-white/95 border-blue-400 text-slate-800 shadow-blue-500/15'
-                }`}
-                style={{
-                  top: defaultCardTop + (customOffsets['multicustomer-block']?.y || 0),
-                  left: defaultCardLeft + (customOffsets['multicustomer-block']?.x || 0),
-                  minWidth: '220px'
-                }}
-                onMouseDown={e => startRightDrag('multicustomer-block', e)}
-                onContextMenu={e => e.preventDefault()}
-                title="Multicustomer Mediant gegevens (versleepbaar met rechtermuisknop)"
-              >
-                {/* Header badge */}
-                <div className="flex items-center justify-between gap-2 border-b pb-1.5 mb-2 border-blue-200/50 dark:border-slate-700">
-                  <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-md">
-                    Multi Customer Mediant
-                  </span>
-                  <span className="text-[10px] text-slate-400 font-mono">
-                    Esprit
-                  </span>
-                </div>
-
-                {/* Esprit Multicustomer (N2G) */}
-                {(() => {
-                  const espritCfg = getEspritConfigByNumber(multicustomerInfo.configNr);
-                  return (
-                    <div className="space-y-1.5">
-                      <div className="font-extrabold text-xs text-blue-700 dark:text-blue-300">
-                        Esprit Multicustomer (N2G)
-                      </div>
-                      <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">
-                        Multi Customer Mediant
-                      </div>
-                      <div className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 space-y-0.5 pt-0.5">
-                        <div>N2G-M4000-ASD-006</div>
-                        <div>N2G-M4000-ASD-007</div>
-                      </div>
-                      <div className="pt-1 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between gap-1.5">
-                        <div className="flex items-center gap-1.5">
-                          <span>config nr. / SRD:</span>
-                          <InlineEdit 
-                            value={multicustomerInfo.configNr}
-                            placeholder="001"
-                            onSave={(val) => {
-                              const digitsOnly = val.replace(/\D/g, '');
-                              const nr = digitsOnly ? parseInt(digitsOnly, 10) : 1;
-                              const clamped = Math.max(1, Math.min(125, isNaN(nr) ? 1 : nr));
-                              const pad = String(clamped).padStart(3, '0');
-                              handleUpdateMulticustomerField('multicustomerConfigNr', pad);
-                            }}
-                            title="Klik om config nr. / SRD direct in het ontwerp aan te passen (bijv. 001 of 002)"
-                            className="text-blue-600 dark:text-blue-400 font-mono font-extrabold bg-blue-50/80 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-blue-200 dark:border-slate-600"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })()}
-              </div>
-            );
-          })()}
+          {/* Multicustomer Mediant Extra Tekstblok */}
+          <DiagramMulticustomerBlock
+            multicustomerInfo={multicustomerInfo}
+            groups={groups}
+            TOTAL_WIDTH={TOTAL_WIDTH}
+            customOffsets={customOffsets}
+            startRightDrag={startRightDrag}
+            handleUpdateMulticustomerField={handleUpdateMulticustomerField}
+            darkMode={darkMode}
+          />
 
           {/* Nodes grouped by Location */}
           {groups.map((group, groupIdx) => (
@@ -1730,9 +1707,10 @@ export function NetworkDiagram({
                     const smallCloudY = (mainCloudBottom + 30) + smallCloudOffset.y;
 
                     const cfg3 = cluster.configNr3 || '001';
-                    const espritCfg = getEspritConfigByNumber(cfg3);
+                    const clientName = cluster.clientName || multicustomerInfo?.client || 'Esprit';
+                    const espritCfg = getEspritConfigByNumber(cfg3, clientName);
                     const cpe0 = group.cpes.find(c => cluster.cpeIds.includes(c.id)) || group.cpes[0];
-                    const pbxIp = cpe0?.pbxs?.[0]?.ip || espritCfg.primaryPbxIp || '10.20.2.1';
+                    const pbxIp = cpe0?.pbxs?.[0]?.ip || espritCfg.primaryPbxIp || (clientName.includes('IP Voice') ? `10.69.69.${parseInt(cfg3, 10) || 1}` : '10.20.2.1');
 
                     return (
                       <React.Fragment key={`esprit-fw-elements-${cluster.id}`}>
@@ -1997,7 +1975,7 @@ export function NetworkDiagram({
                       }
 
                       const isEsprit = (cpe.serviceType === 'Multicustomer' || cpe.isMulticustomer) && (cpe.multicustomerClient === 'Esprit' || isEspritMulti);
-                      const is007 = cpe.hostname?.includes('007') || (isEsprit && cpeIndex === 1);
+                      const is007 = cpe.hostname?.includes('007') || cpe.hostname?.includes('002') || (isEsprit && cpeIndex === 1);
 
                       if (is007) {
                         return (

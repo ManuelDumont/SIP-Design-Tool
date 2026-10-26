@@ -763,7 +763,9 @@ export function ServiceBuilderPropertiesPanel({
                     </>
                   )}
                   {selectedElement.type === 'cloud' && (
-                    <span className="text-[9px] text-slate-500 italic">LAN-subnet reeds gedekt door Mediant invulvelden</span>
+                    <span className="text-[9px] text-slate-500 italic">
+                      {templateCategory === 'data' ? 'LAN-subnet gedekt door Router invulvelden' : 'LAN-subnet reeds gedekt door Mediant invulvelden'}
+                    </span>
                   )}
                   {selectedElement.type === 'sbc' && (
                     <>

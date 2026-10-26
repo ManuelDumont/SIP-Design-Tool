@@ -278,7 +278,7 @@ export function getCpeExtents(cpe: any) {
     localCount = 1;
   }
 
-  const isEsprit = (cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType === 'Multicustomer Esprit' || cpe.serviceType?.startsWith('Multicustomer') || cpe.isMulticustomer) && cpe.multicustomerClient === 'Esprit';
+  const isEsprit = Boolean(cpe.isMulticustomer || cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType === 'Multicustomer Esprit' || cpe.serviceType === 'Multicustomer IP Services Group' || cpe.serviceType?.startsWith('Multicustomer') || cpe.multicustomerClient);
   const hasGw = !isEsprit && (Boolean(cpe.defaultGateway && cpe.defaultGateway.trim()) || routedCount > 0);
   const is007 = cpe.hostname?.includes('007');
 

@@ -89,16 +89,19 @@ export function LocationForm({
     onChange({ ...location, cpes: updatedCpes });
   };
 
-  const handleSelectEspritClient = (initialCfg: string = '001') => {
-    const cfg = getEspritConfigByNumber(initialCfg);
+  const handleSelectEspritClient = (initialCfg: string = '001', clientName: MulticustomerClient = 'Esprit', serviceCodeStr: string = 'Multicustomer Esprit') => {
+    const cfg = getEspritConfigByNumber(initialCfg, clientName);
     const existing0 = location.cpes[0] as Partial<CPEConfig> | undefined;
     const existing1 = location.cpes[1] as Partial<CPEConfig> | undefined;
 
+    const hostname1 = cfg.hostname006 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-006' : 'Mediant 006');
+    const hostname2 = cfg.hostname007 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-002' : 'Mediant 007');
+
     const cpe1: CPEConfig = {
       id: existing0?.id || uuidv4(),
-      hostname: 'Mediant 006',
-      serviceType: 'Multicustomer - Esprit',
-      multicustomerClient: 'Esprit',
+      hostname: hostname1,
+      serviceType: serviceCodeStr as any,
+      multicustomerClient: clientName,
       multicustomerVariant: existing0?.multicustomerVariant || 'VOV',
       multicustomerConfigNr: cfg.configNr,
       wanIp: cfg.mediant006.wanIp,
@@ -115,9 +118,9 @@ export function LocationForm({
 
     const cpe2: CPEConfig = {
       id: existing1?.id || uuidv4(),
-      hostname: 'Mediant 007',
-      serviceType: 'Multicustomer - Esprit',
-      multicustomerClient: 'Esprit',
+      hostname: hostname2,
+      serviceType: serviceCodeStr as any,
+      multicustomerClient: clientName,
       multicustomerVariant: existing1?.multicustomerVariant || 'VOV',
       multicustomerConfigNr: cfg.configNr,
       wanIp: cfg.mediant007.wanIp,
@@ -130,7 +133,7 @@ export function LocationForm({
     onChange({
       ...location,
       isMulticustomer: true,
-      multicustomerClient: 'Esprit',
+      multicustomerClient: clientName,
       multicustomerConfigNr: cfg.configNr,
       showDemarcationLine: false,
       cpes: [cpe1, cpe2]
@@ -138,12 +141,18 @@ export function LocationForm({
   };
 
   const handleEspritConfigNrChange = (rawVal: string) => {
-    const cfg = getEspritConfigByNumber(rawVal);
+    const clientName: MulticustomerClient = location.multicustomerClient || (location.cpes?.[0]?.serviceType?.includes('IP Voice') || location.cpes?.[0]?.multicustomerClient === 'IP Voice Group' ? 'IP Voice Group' : 'Esprit');
+    const cfg = getEspritConfigByNumber(rawVal, clientName);
     const updatedCpes = location.cpes.map((c, idx) => {
       const is006 = idx === 0 || c.hostname.includes('006');
       const medData = is006 ? cfg.mediant006 : cfg.mediant007;
+      const hostname = is006 
+        ? (cfg.hostname006 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-006' : 'Mediant 006'))
+        : (cfg.hostname007 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-002' : 'Mediant 007'));
       return {
         ...c,
+        hostname,
+        multicustomerClient: clientName,
         multicustomerConfigNr: cfg.configNr,
         wanIp: medData.wanIp,
         lanIpCpe: medData.lanIp,
@@ -162,6 +171,7 @@ export function LocationForm({
     onChange({
       ...location,
       multicustomerConfigNr: cfg.configNr,
+      multicustomerClient: clientName,
       cpes: updatedCpes
     });
   };
@@ -188,13 +198,11 @@ export function LocationForm({
   };
 
   const updateCpe = (cpeId: string, field: keyof CPEConfig, value: any) => {
-    const isMultiVal = value === 'Multicustomer' || value === 'Multicustomer - Esprit' || String(value).startsWith('Multicustomer');
+    const isMultiVal = value === 'Multicustomer' || value === 'Multicustomer - Esprit' || value === 'Multicustomer Esprit' || value === 'Multicustomer IP Voice Group' || value === 'Multicustomer IP Services Group' || String(value).startsWith('Multicustomer');
     if (field === 'serviceType' && isMultiVal) {
-      const currentClient = location.cpes.find(c => c.id === cpeId)?.multicustomerClient || 'Esprit';
-      if (currentClient === 'Esprit') {
-        handleSelectEspritClient('001');
-        return;
-      }
+      const clientName: MulticustomerClient = (String(value).includes('IP Voice Group') || String(value).includes('IP Services Group')) ? 'IP Voice Group' : 'Esprit';
+      handleSelectEspritClient('001', clientName, String(value));
+      return;
     }
 
     const finalValue = (field === 'hostname' && typeof value === 'string') ? value.toUpperCase() : value;
@@ -298,7 +306,7 @@ export function LocationForm({
     "255.255.0.0 (/16)",
   ];
 
-  const SERVICE_TYPES: ServiceType[] = ['VOV', 'CN', 'VOV+CN', 'Multicustomer Esprit'];
+  const SERVICE_TYPES: ServiceType[] = ['VOV', 'CN', 'VOV+CN', 'Multicustomer Esprit', 'Multicustomer IP Voice Group'];
 
   const inputClass = `w-full border rounded px-3 py-1.5 text-sm focus:ring-1 focus:ring-blue-500 font-mono transition-colors ${
     darkMode 
@@ -311,7 +319,7 @@ export function LocationForm({
   }`;
 
   const warnings = validateLocation(location);
-  const isMultiLocation = location.isMulticustomer || (location.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType?.startsWith('Multicustomer') || c.isMulticustomer);
+  const isMultiLocation = location.isMulticustomer || (location.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType === 'Multicustomer Esprit' || c.serviceType === 'Multicustomer IP Voice Group' || c.serviceType === 'Multicustomer IP Services Group' || c.serviceType?.startsWith('Multicustomer') || c.isMulticustomer);
 
   // MULTICUSTOMER: Slechts 3 velden uitvragen (Klant, Projectnummer, Config nr./SRD)
   if (isMultiLocation) {
@@ -508,7 +516,7 @@ export function LocationForm({
 
       {/* CPE's Section */}
       {(() => {
-        const isMultiLocation = location.isMulticustomer || (location.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType?.startsWith('Multicustomer') || c.isMulticustomer);
+        const isMultiLocation = location.isMulticustomer || (location.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType === 'Multicustomer Esprit' || c.serviceType === 'Multicustomer IP Voice Group' || c.serviceType === 'Multicustomer IP Services Group' || c.serviceType?.startsWith('Multicustomer') || c.isMulticustomer);
 
         return (
           <div className="space-y-2 pt-1">
@@ -717,15 +725,24 @@ export function LocationForm({
                         <div className={`p-2.5 rounded-lg border text-[11px] font-mono leading-relaxed ${
                           darkMode ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700'
                         }`}>
-                          <div className="font-bold text-blue-600 dark:text-blue-400">
-                            Esprit Multicustomer (N2G)
-                          </div>
-                          <div className="text-slate-500 mt-0.5">Multi Customer Mediant</div>
-                          <div>N2G-M4000-ASD-006</div>
-                          <div>N2G-M4000-ASD-007</div>
-                          <div className="font-bold text-slate-800 dark:text-slate-200 mt-0.5">
-                            Config. Nr. {cpe.multicustomerConfigNr || '001'}
-                          </div>
+                          {(() => {
+                            const isIpVoice = cpe.multicustomerClient === 'IP Voice Group' || cpe.multicustomerClient === 'IP Services Group' || location.multicustomerClient === 'IP Voice Group' || location.multicustomerClient === 'IP Services Group' || cpe.serviceType?.includes('IP Voice');
+                            const cfg = getEspritConfigByNumber(cpe.multicustomerConfigNr || '001', isIpVoice ? 'IP Voice Group' : 'Esprit');
+                            return (
+                              <>
+                                <div className="font-bold text-blue-600 dark:text-blue-400">
+                                  {isIpVoice ? 'IP Voice Group Multicustomer (UFC)' : 'Esprit Multicustomer (N2G)'}
+                                </div>
+                                <div className="text-slate-500 mt-0.5">Multi Customer Mediant</div>
+                                <div>{cfg.hostname006 || (isIpVoice ? 'UFC-M2600-ASD-006' : 'N2G-M4000-ASD-006')}</div>
+                                <div>{cfg.hostname007 || (isIpVoice ? 'UFC-M2600-ASD-002' : 'N2G-M4000-ASD-007')}</div>
+                                <div className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 flex items-center justify-between">
+                                  <span>config nr. / SRD: {cpe.multicustomerConfigNr || '001'}</span>
+                                  <span className="text-slate-400 font-mono text-[10px]">{cfg.customerId}</span>
+                                </div>
+                              </>
+                            );
+                          })()}
                         </div>
                       </div>
                     )}

@@ -4,6 +4,7 @@ import { DiagramInlineEdit } from './DiagramInlineEdit';
 
 export interface DiagramTopBarProps {
   isEspritMulti: boolean;
+  clientName?: string;
   effectiveCustomerName: string;
   effectiveProjectNumber: string;
   onUpdateCustomerName?: (name: string) => void;
@@ -14,6 +15,7 @@ export interface DiagramTopBarProps {
 
 export function DiagramTopBar({
   isEspritMulti,
+  clientName = 'Esprit',
   effectiveCustomerName,
   effectiveProjectNumber,
   onUpdateCustomerName,
@@ -27,7 +29,7 @@ export function DiagramTopBar({
         <div className="text-white text-2xl font-medium tracking-tight flex items-center gap-2">
           {isEspritMulti ? (
             <>
-              <span className="font-semibold whitespace-nowrap">Esprit MultiCustomer:</span>
+              <span className="font-semibold whitespace-nowrap">{clientName} MultiCustomer:</span>
               <DiagramInlineEdit 
                 value={effectiveCustomerName} 
                 placeholder="Klantnaam" 

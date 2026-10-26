@@ -101,6 +101,31 @@ export const BUILT_IN_SERVICES: CustomServiceDefinition[] = [
     hasDefaultGateway: false,
     hasConfigNr: true,
     isBuiltIn: true
+  },
+  {
+    id: 'builtin-multicustomer-ip-voice-group',
+    name: 'Multicustomer IP Voice Group',
+    code: 'Multicustomer IP Voice Group',
+    category: 'voice',
+    description: '',
+    cpeCount: 2,
+    hostnamePrefix: 'UFC-M2600-ASD-006',
+    hasWan: true,
+    hasVoiceLan: true,
+    hasCn: false,
+    defaultSubnet: '255.255.252.0 (/22)',
+    hasCustomerLanCloud: true,
+    hasSecondLanCloud: true,
+    hasPhoneIcon: true,
+    hasFirewall: true,
+    firewallHasConnectors: false,
+    firewallIpRole: 'pbx',
+    allowDemarcationLine: false,
+    hasLocalPbx: false,
+    hasRoutedPbx: false,
+    hasDefaultGateway: false,
+    hasConfigNr: true,
+    isBuiltIn: true
   }
 ];
 
@@ -170,6 +195,9 @@ export function findServiceDefinition(codeOrName: string): CustomServiceDefiniti
   // Aliases voor compatibiliteit met eerdere opgeslagen ontwerpen
   if (codeOrName === 'VOV + CN' || codeOrName === 'VOV & CN' || codeOrName === 'VOV+CN' || (codeOrName.includes('VOV') && codeOrName.includes('CN'))) {
     return all.find(s => s.code === 'VOV+CN' || s.code === 'VOV & CN');
+  }
+  if (codeOrName === 'Multicustomer IP Voice Group' || codeOrName === 'Multicustomer - IP Voice Group' || codeOrName.includes('IP Voice Group') || codeOrName === 'Multicustomer IP Services Group' || codeOrName.includes('IP Services Group')) {
+    return all.find(s => s.code === 'Multicustomer IP Voice Group' || s.name === 'Multicustomer IP Voice Group');
   }
   if (codeOrName === 'Multicustomer' || codeOrName === 'Multicustomer - Esprit' || codeOrName === 'Multicustomer Esprit' || codeOrName.startsWith('Multicustomer')) {
     return all.find(s => s.code === 'Multicustomer Esprit' || s.code === 'Multicustomer - Esprit');

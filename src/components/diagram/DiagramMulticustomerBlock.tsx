@@ -24,10 +24,24 @@ export function DiagramMulticustomerBlock({
   if (!multicustomerInfo) return null;
 
   const allMappedCpes = groups.flatMap(g => g.cpes);
-  const targetCpeForCard = allMappedCpes.find((c: any) => c.hostname?.includes('007')) || (allMappedCpes.length > 1 ? allMappedCpes[1] : allMappedCpes[0]);
+  const targetCpeForCard = allMappedCpes.find((c: any) => c.hostname?.includes('007') || c.hostname?.includes('002')) || (allMappedCpes.length > 1 ? allMappedCpes[1] : allMappedCpes[0]);
   const defaultCardLeft = targetCpeForCard ? (targetCpeForCard.cpeX + 50) : (TOTAL_WIDTH - 300);
   const defaultCardTop = 240;
-  const espritCfg = getEspritConfigByNumber(multicustomerInfo.configNr);
+
+  const rawClient = multicustomerInfo.client || '';
+  const isIpVoice = (
+    rawClient === 'IP Voice Group' || 
+    rawClient === 'IP Services Group' || 
+    rawClient.includes('IP Voice') || 
+    rawClient.includes('IP Services') ||
+    allMappedCpes.some((c: any) => c.serviceType?.includes('IP Voice') || c.serviceType?.includes('IP Services') || c.multicustomerClient === 'IP Voice Group' || c.multicustomerClient === 'IP Services Group')
+  );
+  const clientName = isIpVoice ? 'IP Voice Group' : (rawClient || 'Esprit');
+  const espritCfg = getEspritConfigByNumber(multicustomerInfo.configNr, clientName);
+
+  const displayTitle = isIpVoice ? 'IP Voice Group Multicustomer (UFC)' : 'Esprit Multicustomer (N2G)';
+  const hostname006 = espritCfg.hostname006 || (isIpVoice ? 'UFC-M2600-ASD-006' : 'N2G-M4000-ASD-006');
+  const hostname007 = espritCfg.hostname007 || (isIpVoice ? 'UFC-M2600-ASD-002' : 'N2G-M4000-ASD-007');
 
   return (
     <div 
@@ -50,31 +64,37 @@ export function DiagramMulticustomerBlock({
         <span className="text-[10px] font-bold uppercase tracking-wider text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-950/60 px-2 py-0.5 rounded-md">
           Multi Customer Mediant
         </span>
-        <span className="text-[10px] text-slate-400 font-mono">
-          Esprit
+        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-300 font-mono">
+          {clientName}
         </span>
       </div>
 
-      {/* Esprit Multicustomer (N2G) */}
+      {/* Multicustomer Title */}
       <div className="space-y-1.5">
         <div className="font-extrabold text-xs text-blue-700 dark:text-blue-300">
-          Esprit Multicustomer (N2G)
+          {displayTitle}
         </div>
         <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-400">
           Multi Customer Mediant
         </div>
         <div className="font-mono text-xs font-bold text-slate-800 dark:text-slate-200 space-y-0.5 pt-0.5">
-          <div>N2G-M4000-ASD-006</div>
-          <div>N2G-M4000-ASD-007</div>
+          <div>{hostname006}</div>
+          <div>{hostname007}</div>
         </div>
         <div className="pt-1 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between gap-1.5">
           <div className="flex items-center gap-1.5">
-            <span>Config. Nr.</span>
+            <span>config nr. / SRD:</span>
             <DiagramInlineEdit 
               value={multicustomerInfo.configNr}
               placeholder="001"
-              onSave={(val) => handleUpdateMulticustomerField('multicustomerConfigNr', val)}
-              title="Klik om Config. Nr. direct in het ontwerp aan te passen (bijv. 002 of SRD002)"
+              onSave={(val) => {
+                const digitsOnly = val.replace(/\D/g, '');
+                const nr = digitsOnly ? parseInt(digitsOnly, 10) : 1;
+                const clamped = Math.max(1, Math.min(125, isNaN(nr) ? 1 : nr));
+                const pad = String(clamped).padStart(3, '0');
+                handleUpdateMulticustomerField('multicustomerConfigNr', pad);
+              }}
+              title="Klik om config nr. / SRD direct in het ontwerp aan te passen (bijv. 001 of 002)"
               className="text-blue-600 dark:text-blue-400 font-mono font-extrabold bg-blue-50/80 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-blue-200 dark:border-slate-600"
             />
           </div>
