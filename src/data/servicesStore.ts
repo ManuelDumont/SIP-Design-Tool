@@ -126,6 +126,31 @@ export const BUILT_IN_SERVICES: CustomServiceDefinition[] = [
     hasDefaultGateway: false,
     hasConfigNr: true,
     isBuiltIn: true
+  },
+  {
+    id: 'builtin-multicustomer-kinwel',
+    name: 'Multicustomer Kinwel',
+    code: 'Multicustomer Kinwel',
+    category: 'voice',
+    description: '',
+    cpeCount: 2,
+    hostnamePrefix: 'DS4-M2600-ASD-002',
+    hasWan: true,
+    hasVoiceLan: true,
+    hasCn: false,
+    defaultSubnet: '255.255.254.0 (/23)',
+    hasCustomerLanCloud: true,
+    hasSecondLanCloud: true,
+    hasPhoneIcon: true,
+    hasFirewall: true,
+    firewallHasConnectors: false,
+    firewallIpRole: 'pbx',
+    allowDemarcationLine: false,
+    hasLocalPbx: false,
+    hasRoutedPbx: false,
+    hasDefaultGateway: false,
+    hasConfigNr: true,
+    isBuiltIn: true
   }
 ];
 
@@ -195,6 +220,9 @@ export function findServiceDefinition(codeOrName: string): CustomServiceDefiniti
   // Aliases voor compatibiliteit met eerdere opgeslagen ontwerpen
   if (codeOrName === 'VOV + CN' || codeOrName === 'VOV & CN' || codeOrName === 'VOV+CN' || (codeOrName.includes('VOV') && codeOrName.includes('CN'))) {
     return all.find(s => s.code === 'VOV+CN' || s.code === 'VOV & CN');
+  }
+  if (codeOrName === 'Multicustomer Kinwel' || codeOrName === 'Multicustomer - Kinwel' || codeOrName.includes('Kinwel')) {
+    return all.find(s => s.code === 'Multicustomer Kinwel' || s.name === 'Multicustomer Kinwel');
   }
   if (codeOrName === 'Multicustomer IP Voice Group' || codeOrName === 'Multicustomer - IP Voice Group' || codeOrName.includes('IP Voice Group') || codeOrName === 'Multicustomer IP Services Group' || codeOrName.includes('IP Services Group')) {
     return all.find(s => s.code === 'Multicustomer IP Voice Group' || s.name === 'Multicustomer IP Voice Group');

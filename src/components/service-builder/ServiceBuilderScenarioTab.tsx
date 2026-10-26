@@ -419,10 +419,10 @@ export function ServiceBuilderScenarioTab({
                     const isExpanded = expandedCpeId === cpe.id;
                     const vals = cpeValues[cpe.id] || {
                       hostname: cpe.label || `Mediant ${cpeIndex + 1}`,
-                      wanIp: '10.183.57.xxx',
-                      lanIp: '192.168.1.1',
+                      wanIp: cpe.wanIp || '',
+                      lanIp: cpe.lanIp || '',
                       subnet: '255.255.255.0 (/24)',
-                      gateway: '192.168.1.254'
+                      gateway: ''
                     };
 
                     return (

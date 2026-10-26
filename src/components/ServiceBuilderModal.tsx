@@ -375,8 +375,8 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
           y: centerY,
           scale: 1,
           label: '',
-          wanIp: 'x.x.x.x',
-          lanIp: 'x.x.x.x',
+          wanIp: '',
+          lanIp: '',
           showWanIp: true,
           showLanIp: templateCategory === 'data',
           ipPlacement: 'auto',
@@ -391,8 +391,8 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
           y: centerY,
           scale: 1,
           label: '',
-          wanIp: 'x.x.x.x',
-          lanIp: 'x.x.x.x',
+          wanIp: '',
+          lanIp: '',
           showWanIp: true,
           showLanIp: true,
           ipPlacement: 'auto',
@@ -408,7 +408,7 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
           y: centerY,
           scale: 1,
           label: '',
-          lanIp: 'x.x.x.x',
+          lanIp: '',
           showWanIp: false,
           showLanIp: true,
           ipPlacement: 'auto',
@@ -424,7 +424,7 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
           y: centerY + 50,
           scale: 1,
           label: '',
-          lanIp: 'x.x.x.x',
+          lanIp: '',
           showWanIp: false,
           showLanIp: true,
           ipPlacement: 'auto',
@@ -440,7 +440,7 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
           y: centerY + 60,
           scale: 1,
           label: '',
-          lanIp: 'x.x.x.x',
+          lanIp: '',
           showWanIp: false,
           showLanIp: false,
           ipPlacement: 'auto',
@@ -456,7 +456,7 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
           y: centerY + 60,
           scale: 1,
           label: '',
-          lanIp: 'x.x.x.x',
+          lanIp: '',
           showWanIp: false,
           showLanIp: false,
           ipPlacement: 'auto',
@@ -1281,6 +1281,266 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
     setServiceToDelete(null);
   };
 
+function generateDefaultElementsForService(svc: CustomServiceDefinition): BuilderElement[] {
+  if (svc.builderElements && svc.builderElements.length > 0) {
+    return svc.builderElements;
+  }
+
+  const elems: BuilderElement[] = [];
+  const code = svc.code;
+
+  if (code === 'VOV') {
+    elems.push({
+      id: 'elem-vov-mediant',
+      type: 'mediant',
+      x: 380,
+      y: 150,
+      scale: 1,
+      label: 'Mediant CPE',
+      wanIp: '',
+      lanIp: '',
+      showWanIp: true,
+      showLanIp: true
+    });
+    elems.push({
+      id: 'elem-vov-cloud',
+      type: 'cloud',
+      x: 380,
+      y: 260,
+      width: 320,
+      height: 80,
+      scale: 1,
+      label: 'Customer LAN'
+    });
+    elems.push({
+      id: 'elem-vov-pbx',
+      type: 'pbx',
+      x: 380,
+      y: 370,
+      scale: 1,
+      label: 'SIP PBX',
+      lanIp: '',
+      showWanIp: false,
+      showLanIp: true
+    });
+    elems.push({
+      id: 'conn-vov-1',
+      type: 'connector',
+      x: 380, y: 205, x1: 380, y1: 170, x2: 380, y2: 240,
+      sourceElementId: 'elem-vov-mediant', targetElementId: 'elem-vov-cloud',
+      color: '#2563eb', strokeWidth: 2.5, connectorShape: 'straight'
+    });
+    elems.push({
+      id: 'conn-vov-2',
+      type: 'connector',
+      x: 380, y: 325, x1: 380, y1: 280, x2: 380, y2: 350,
+      sourceElementId: 'elem-vov-cloud', targetElementId: 'elem-vov-pbx',
+      color: '#2563eb', strokeWidth: 2, lineStyle: 'dashed', connectorShape: 'straight'
+    });
+  } else if (code === 'CN') {
+    elems.push({
+      id: 'elem-cn-router',
+      type: 'router',
+      x: 380,
+      y: 160,
+      scale: 1,
+      label: 'CN Router',
+      wanIp: '',
+      lanIp: '',
+      showWanIp: true,
+      showLanIp: true
+    });
+    elems.push({
+      id: 'elem-cn-cloud',
+      type: 'cloud',
+      x: 380,
+      y: 280,
+      width: 320,
+      height: 80,
+      scale: 1,
+      label: 'Corporate Net'
+    });
+    elems.push({
+      id: 'conn-cn-1',
+      type: 'connector',
+      x: 380, y: 220, x1: 380, y1: 180, x2: 380, y2: 260,
+      sourceElementId: 'elem-cn-router', targetElementId: 'elem-cn-cloud',
+      color: '#2563eb', strokeWidth: 2.5, connectorShape: 'straight'
+    });
+  } else if (code === 'VOV+CN' || code === 'VOV & CN') {
+    elems.push({
+      id: 'elem-vovcn-mediant',
+      type: 'mediant',
+      x: 380,
+      y: 150,
+      scale: 1,
+      label: 'Mediant VOV+CN',
+      wanIp: '',
+      lanIp: '',
+      showWanIp: true,
+      showLanIp: true
+    });
+    elems.push({
+      id: 'elem-vovcn-cloud',
+      type: 'cloud',
+      x: 380,
+      y: 260,
+      width: 340,
+      height: 85,
+      scale: 1,
+      label: 'Customer Voice & CN LAN'
+    });
+    elems.push({
+      id: 'elem-vovcn-pbx',
+      type: 'pbx',
+      x: 380,
+      y: 375,
+      scale: 1,
+      label: 'SIP PBX',
+      lanIp: '',
+      showWanIp: false,
+      showLanIp: true
+    });
+    elems.push({
+      id: 'conn-vovcn-1',
+      type: 'connector',
+      x: 380, y: 205, x1: 380, y1: 170, x2: 380, y2: 240,
+      sourceElementId: 'elem-vovcn-mediant', targetElementId: 'elem-vovcn-cloud',
+      color: '#2563eb', strokeWidth: 2.5, connectorShape: 'straight'
+    });
+    elems.push({
+      id: 'conn-vovcn-2',
+      type: 'connector',
+      x: 380, y: 325, x1: 380, y1: 280, x2: 380, y2: 355,
+      sourceElementId: 'elem-vovcn-cloud', targetElementId: 'elem-vovcn-pbx',
+      color: '#2563eb', strokeWidth: 2, lineStyle: 'dashed', connectorShape: 'straight'
+    });
+  } else if (code.includes('Multicustomer') || code.includes('Esprit') || code.includes('IP Voice') || code.includes('Kinwel')) {
+    const isKinwel = code.includes('Kinwel');
+    const isIpVoice = code.includes('IP Voice') || code.includes('IP Services');
+    const host006 = isKinwel ? 'DS4-M2600-ASD-002' : (isIpVoice ? 'UFC-M2600-ASD-006' : 'N2G-M4000-ASD-006');
+    const host007 = isKinwel ? 'DS4-M2600-ASD-005' : (isIpVoice ? 'UFC-M2600-ASD-002' : 'N2G-M4000-ASD-007');
+
+    elems.push({
+      id: 'elem-multi-m1',
+      type: 'mediant',
+      x: 280,
+      y: 130,
+      scale: 1,
+      label: host006,
+      wanIp: '',
+      lanIp: '',
+      showWanIp: true,
+      showLanIp: true
+    });
+    elems.push({
+      id: 'elem-multi-m2',
+      type: 'mediant',
+      x: 480,
+      y: 130,
+      scale: 1,
+      label: host007,
+      wanIp: '',
+      lanIp: '',
+      showWanIp: true,
+      showLanIp: true
+    });
+    elems.push({
+      id: 'elem-multi-cloud',
+      type: 'cloud',
+      x: 380,
+      y: 250,
+      width: 360,
+      height: 90,
+      scale: 1,
+      label: isKinwel ? 'Kinwel LAN' : (isIpVoice ? 'IP Voice LAN' : 'Esprit LAN')
+    });
+    elems.push({
+      id: 'elem-multi-fw',
+      type: 'firewall',
+      x: 380,
+      y: 350,
+      scale: 1,
+      label: 'Firewall',
+      wanIp: '',
+      showWanIp: true,
+      showLanIp: false
+    });
+    elems.push({
+      id: 'elem-multi-pbx',
+      type: 'pbx',
+      x: 520,
+      y: 350,
+      scale: 1,
+      label: 'SIP PBX',
+      lanIp: '',
+      showWanIp: false,
+      showLanIp: true
+    });
+
+    elems.push({
+      id: 'conn-m1-cloud',
+      type: 'connector',
+      x: 330, y: 190, x1: 280, y1: 150, x2: 330, y2: 230,
+      sourceElementId: 'elem-multi-m1', targetElementId: 'elem-multi-cloud',
+      color: '#2563eb', strokeWidth: 2.5, connectorShape: 'straight'
+    });
+    elems.push({
+      id: 'conn-m2-cloud',
+      type: 'connector',
+      x: 430, y: 190, x1: 480, y1: 150, x2: 430, y2: 230,
+      sourceElementId: 'elem-multi-m2', targetElementId: 'elem-multi-cloud',
+      color: '#2563eb', strokeWidth: 2.5, connectorShape: 'straight'
+    });
+    elems.push({
+      id: 'conn-cloud-fw',
+      type: 'connector',
+      x: 380, y: 310, x1: 380, y1: 275, x2: 380, y2: 335,
+      sourceElementId: 'elem-multi-cloud', targetElementId: 'elem-multi-fw',
+      color: '#dc2626', strokeWidth: 2, connectorShape: 'straight'
+    });
+    elems.push({
+      id: 'conn-fw-pbx',
+      type: 'connector',
+      x: 450, y: 350, x1: 405, y1: 350, x2: 495, y2: 350,
+      sourceElementId: 'elem-multi-fw', targetElementId: 'elem-multi-pbx',
+      color: '#dc2626', strokeWidth: 2, lineStyle: 'dashed', connectorShape: 'straight'
+    });
+  } else {
+    elems.push({
+      id: `elem-${Date.now()}-router`,
+      type: svc.category === 'data' ? 'router' : 'mediant',
+      x: 380,
+      y: 160,
+      scale: 1,
+      label: svc.hostnamePrefix || svc.name,
+      wanIp: '',
+      lanIp: '',
+      showWanIp: true,
+      showLanIp: true
+    });
+    elems.push({
+      id: `elem-${Date.now()}-cloud`,
+      type: 'cloud',
+      x: 380,
+      y: 280,
+      width: 320,
+      height: 80,
+      scale: 1,
+      label: `${svc.name} LAN`
+    });
+    elems.push({
+      id: `conn-${Date.now()}-1`,
+      type: 'connector',
+      x: 380, y: 220, x1: 380, y1: 180, x2: 380, y2: 260,
+      sourceElementId: `elem-${Date.now()}-router`, targetElementId: `elem-${Date.now()}-cloud`,
+      color: '#2563eb', strokeWidth: 2.5, connectorShape: 'straight'
+    });
+  }
+
+  return elems;
+}
+
   // Template openen in studio
   const handleLoadService = (svc: CustomServiceDefinition) => {
     setLoadedServiceId(svc.isBuiltIn ? null : svc.id);
@@ -1292,14 +1552,14 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
     if (svc.builderElements && svc.builderElements.length > 0) {
       setElements(svc.builderElements);
     } else {
-      setElements([]);
+      setElements(generateDefaultElementsForService(svc));
     }
     setSelectedIds([]);
     setActiveTab('studio');
     setFeedbackMsg({ 
       text: svc.isBuiltIn 
-        ? `Standaard template "${svc.name}" geladen als basis voor een nieuw eigen template.` 
-        : `Template "${svc.name}" geladen in Studio.` 
+        ? `Bestaande dienst "${svc.name}" geladen in Studio als basis voor een nieuw template.` 
+        : `Bestaande dienst "${svc.name}" geladen in Studio.` 
     });
   };
 
@@ -1400,7 +1660,7 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
                     : darkMode ? 'text-slate-400 hover:text-slate-200' : 'text-slate-600 hover:text-slate-900'
                 }`}
               >
-                📋 Opgeslagen Diensten ({servicesList.filter(s => !s.isBuiltIn).length})
+                📋 Bestaande diensten ({servicesList.length})
               </button>
             </div>
 
@@ -1437,6 +1697,49 @@ export function ServiceBuilderModal({ isOpen, onClose, darkMode = false, onServi
               darkMode ? 'bg-slate-850/70 border-slate-800' : 'bg-slate-50/80 border-slate-200'
             }`}>
               
+              {/* BESTAANDE DIENSTEN SELECTOR */}
+              <div className="space-y-1.5 pb-3 border-b border-slate-200 dark:border-slate-800">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
+                    Bestaande diensten
+                  </span>
+                  <span className="text-[9px] text-blue-600 dark:text-blue-400 font-extrabold bg-blue-50 dark:bg-blue-950 px-1.5 py-0.2 rounded">
+                    {servicesList.length} beschikbaar
+                  </span>
+                </div>
+                <select
+                  className={`w-full text-xs font-semibold p-2 rounded-xl border transition-all cursor-pointer ${
+                    darkMode ? 'bg-slate-800 border-slate-700 text-slate-100' : 'bg-white border-slate-200 text-slate-800 shadow-2xs'
+                  }`}
+                  value={loadedServiceId || ''}
+                  onChange={(e) => {
+                    const selectedSvc = servicesList.find(s => s.id === e.target.value || s.code === e.target.value);
+                    if (selectedSvc) {
+                      handleLoadService(selectedSvc);
+                    }
+                  }}
+                >
+                  <option value="">-- Kies een bestaande dienst als basis --</option>
+                  <optgroup label="🎙️ Voice Diensten">
+                    {servicesList.filter(s => s.category !== 'data').map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.code}) {s.isBuiltIn ? '[Ingebouwd]' : '[Eigen template]'}
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="🌐 Data Diensten">
+                    {servicesList.filter(s => s.category === 'data').map(s => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} ({s.code}) {s.isBuiltIn ? '[Ingebouwd]' : '[Eigen template]'}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+                <p className="text-[10px] text-slate-400 leading-tight">
+                  Selecteer een bestaande dienst om de volledige netwerktopologie direct op het canvas te laden.
+                </p>
+              </div>
+
               {/* KEUZE TUSSEN VOICE OF DATA TEMPLATE */}
               <div className="space-y-1.5 pb-2.5 border-b border-slate-200 dark:border-slate-800">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">

@@ -41,7 +41,7 @@ export function DiagramCpeNode({
   else if (service.startsWith('VOV')) servicePrefix = 'VOV ';
 
   const isEsprit = Boolean(cpe.isMulticustomer || cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType === 'Multicustomer Esprit' || cpe.serviceType === 'Multicustomer IP Services Group' || cpe.serviceType?.startsWith('Multicustomer') || cpe.multicustomerClient || isEspritMulti);
-  const is007 = cpe.hostname?.includes('007') || (isEsprit && cpeIndex === 1);
+  const is007 = cpe.hostname?.includes('007') || cpe.hostname?.includes('005') || (cpe.hostname?.includes('002') && (cpe.hostname?.includes('UFC') || cpe.multicustomerClient === 'IP Voice Group')) || (isEsprit && cpeIndex === 1);
 
   return (
     <div 

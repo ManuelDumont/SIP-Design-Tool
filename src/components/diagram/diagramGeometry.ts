@@ -280,7 +280,7 @@ export function getCpeExtents(cpe: any) {
 
   const isEsprit = Boolean(cpe.isMulticustomer || cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType === 'Multicustomer Esprit' || cpe.serviceType === 'Multicustomer IP Services Group' || cpe.serviceType?.startsWith('Multicustomer') || cpe.multicustomerClient);
   const hasGw = !isEsprit && (Boolean(cpe.defaultGateway && cpe.defaultGateway.trim()) || routedCount > 0);
-  const is007 = cpe.hostname?.includes('007');
+  const is007 = cpe.hostname?.includes('007') || cpe.hostname?.includes('005') || (cpe.hostname?.includes('002') && (cpe.hostname?.includes('UFC') || cpe.multicustomerClient === 'IP Voice Group'));
 
   // Ruimte links van de CPE:
   // De IP-box links (WAN/LAN of CN WAN/LAN) is ~180px breed en staat op 10px van de Mediant (50px half = 240px van centrum)

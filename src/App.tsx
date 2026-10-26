@@ -54,10 +54,17 @@ const createEspritLocation = (
   configNr = '001',
   serviceCode = 'Multicustomer Esprit'
 ): LocationConfig => {
-  const clientName: MulticustomerClient = (serviceCode.includes('IP Voice Group') || serviceCode.includes('IP Services Group')) ? 'IP Voice Group' : 'Esprit';
+  let clientName: MulticustomerClient = 'Esprit';
+  if (serviceCode.includes('Kinwel')) {
+    clientName = 'Kinwel';
+  } else if (serviceCode.includes('IP Voice Group') || serviceCode.includes('IP Services Group')) {
+    clientName = 'IP Voice Group';
+  }
   const cfg = getEspritConfigByNumber(configNr, clientName);
-  const hostname006 = cfg.hostname006 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-006' : 'N2G-M4000-ASD-006');
-  const hostname007 = cfg.hostname007 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-002' : 'N2G-M4000-ASD-007');
+  const hostname006 = cfg.hostname006 || (clientName === 'Kinwel' ? 'DS4-M2600-ASD-002' : (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-006' : 'N2G-M4000-ASD-006'));
+  const hostname007 = cfg.hostname007 || (clientName === 'Kinwel' ? 'DS4-M2600-ASD-005' : (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-002' : 'N2G-M4000-ASD-007'));
+  const defaultSubnet = clientName === 'Kinwel' ? '255.255.254.0 (/23)' : '255.255.252.0 (/22)';
+
   const cpe1 = {
     id: uuidv4(),
     hostname: hostname006,
@@ -67,7 +74,7 @@ const createEspritLocation = (
     multicustomerConfigNr: cfg.configNr,
     wanIp: cfg.mediant006.wanIp,
     lanIpCpe: cfg.mediant006.lanIp,
-    lanSubnet: '255.255.252.0 (/22)',
+    lanSubnet: defaultSubnet,
     defaultGateway: cfg.sipLanIpGw,
     pbxs: [{
       id: uuidv4(),
@@ -86,7 +93,7 @@ const createEspritLocation = (
     multicustomerConfigNr: cfg.configNr,
     wanIp: cfg.mediant007.wanIp,
     lanIpCpe: cfg.mediant007.lanIp,
-    lanSubnet: '255.255.252.0 (/22)',
+    lanSubnet: defaultSubnet,
     defaultGateway: cfg.sipLanIpGw,
     pbxs: []
   };
@@ -228,6 +235,9 @@ export default function App() {
                           selectedServiceCode === 'Multicustomer - IP Voice Group' ||
                           selectedServiceCode === 'Multicustomer IP Services Group' ||
                           selectedServiceCode === 'Multicustomer - IP Services Group' ||
+                          selectedServiceCode === 'Multicustomer Kinwel' ||
+                          selectedServiceCode === 'Multicustomer - Kinwel' ||
+                          selectedServiceCode.includes('Kinwel') ||
                           selectedServiceCode.startsWith('Multicustomer');
 
   // Voor Multicustomer Esprit / IP Services Group: nooit om locatie vragen; direct initialiseren zodra klantnaam en projectnummer ingevuld/overgeslagen zijn
@@ -239,14 +249,48 @@ export default function App() {
     }
   }, [isEspritService, customerName, hasAskedProject, locations.length, selectedServiceCode]);
 
-  // Synchroniseer bestaande multicustomer locaties als geselecteerde dienst 'IP Voice Group' is
+  // Synchroniseer bestaande multicustomer locaties als geselecteerde dienst 'IP Voice Group' of 'Kinwel' is
   useEffect(() => {
-    if (selectedServiceCode.includes('IP Voice Group') || selectedServiceCode.includes('IP Services Group')) {
+    if (selectedServiceCode.includes('Kinwel')) {
       setLocations(prev => {
         let changed = false;
         const next = prev.map(loc => {
           const isMulti = loc.isMulticustomer || (loc.cpes || []).some(c => c.isMulticustomer || c.serviceType?.startsWith('Multicustomer'));
-          if (isMulti && (loc.multicustomerClient !== 'IP Voice Group' || (loc.cpes || []).some(c => c.multicustomerClient !== 'IP Voice Group' || c.hostname.includes('N2G') || c.hostname.includes('Mediant')))) {
+          if (isMulti && (loc.multicustomerClient !== 'Kinwel' || (loc.cpes || []).some(c => c.multicustomerClient !== 'Kinwel' || c.hostname.includes('N2G') || c.hostname.includes('UFC')))) {
+            changed = true;
+            const cfg = getEspritConfigByNumber(loc.multicustomerConfigNr || '001', 'Kinwel');
+            return {
+              ...loc,
+              multicustomerClient: 'Kinwel' as MulticustomerClient,
+              cpes: (loc.cpes || []).map((c, idx) => {
+                const is006 = idx === 0 || c.hostname.includes('006') || c.hostname.includes('ASD-002');
+                const medData = is006 ? cfg.mediant006 : cfg.mediant007;
+                return {
+                  ...c,
+                  serviceType: 'Multicustomer Kinwel' as any,
+                  multicustomerClient: 'Kinwel' as MulticustomerClient,
+                  hostname: is006 ? 'DS4-M2600-ASD-002' : 'DS4-M2600-ASD-005',
+                  wanIp: medData.wanIp,
+                  lanIpCpe: medData.lanIp,
+                  lanSubnet: '255.255.254.0 (/23)',
+                  defaultGateway: cfg.sipLanIpGw,
+                  ...(is006 && c.pbxs?.[0] ? {
+                    pbxs: [{ ...c.pbxs[0], ip: cfg.primaryPbxIp }]
+                  } : {})
+                };
+              })
+            };
+          }
+          return loc;
+        });
+        return changed ? next : prev;
+      });
+    } else if (selectedServiceCode.includes('IP Voice Group') || selectedServiceCode.includes('IP Services Group')) {
+      setLocations(prev => {
+        let changed = false;
+        const next = prev.map(loc => {
+          const isMulti = loc.isMulticustomer || (loc.cpes || []).some(c => c.isMulticustomer || c.serviceType?.startsWith('Multicustomer'));
+          if (isMulti && (loc.multicustomerClient !== 'IP Voice Group' || (loc.cpes || []).some(c => c.multicustomerClient !== 'IP Voice Group' || c.hostname.includes('N2G') || c.hostname.includes('Mediant') || c.hostname.includes('DS4')))) {
             changed = true;
             const cfg = getEspritConfigByNumber(loc.multicustomerConfigNr || '001', 'IP Voice Group');
             return {
@@ -262,6 +306,7 @@ export default function App() {
                   hostname: is006 ? 'UFC-M2600-ASD-006' : 'UFC-M2600-ASD-002',
                   wanIp: medData.wanIp,
                   lanIpCpe: medData.lanIp,
+                  lanSubnet: '255.255.252.0 (/22)',
                   defaultGateway: cfg.sipLanIpGw,
                   ...(is006 && c.pbxs?.[0] ? {
                     pbxs: [{ ...c.pbxs[0], ip: cfg.primaryPbxIp }]

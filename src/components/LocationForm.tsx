@@ -94,8 +94,9 @@ export function LocationForm({
     const existing0 = location.cpes[0] as Partial<CPEConfig> | undefined;
     const existing1 = location.cpes[1] as Partial<CPEConfig> | undefined;
 
-    const hostname1 = cfg.hostname006 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-006' : 'Mediant 006');
-    const hostname2 = cfg.hostname007 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-002' : 'Mediant 007');
+    const hostname1 = cfg.hostname006 || (clientName === 'Kinwel' ? 'DS4-M2600-ASD-002' : (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-006' : 'Mediant 006'));
+    const hostname2 = cfg.hostname007 || (clientName === 'Kinwel' ? 'DS4-M2600-ASD-005' : (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-002' : 'Mediant 007'));
+    const defaultSubnet = clientName === 'Kinwel' ? '255.255.254.0 (/23)' : '255.255.252.0 (/22)';
 
     const cpe1: CPEConfig = {
       id: existing0?.id || uuidv4(),
@@ -106,7 +107,7 @@ export function LocationForm({
       multicustomerConfigNr: cfg.configNr,
       wanIp: cfg.mediant006.wanIp,
       lanIpCpe: cfg.mediant006.lanIp,
-      lanSubnet: '255.255.252.0 (/22)',
+      lanSubnet: defaultSubnet,
       defaultGateway: cfg.sipLanIpGw,
       pbxs: [{
         id: existing0?.pbxs?.[0]?.id || uuidv4(),
@@ -125,7 +126,7 @@ export function LocationForm({
       multicustomerConfigNr: cfg.configNr,
       wanIp: cfg.mediant007.wanIp,
       lanIpCpe: cfg.mediant007.lanIp,
-      lanSubnet: '255.255.252.0 (/22)',
+      lanSubnet: defaultSubnet,
       defaultGateway: cfg.sipLanIpGw,
       pbxs: []
     };
@@ -141,14 +142,24 @@ export function LocationForm({
   };
 
   const handleEspritConfigNrChange = (rawVal: string) => {
-    const clientName: MulticustomerClient = location.multicustomerClient || (location.cpes?.[0]?.serviceType?.includes('IP Voice') || location.cpes?.[0]?.multicustomerClient === 'IP Voice Group' ? 'IP Voice Group' : 'Esprit');
+    const isKinwel = (
+      location.multicustomerClient === 'Kinwel' || 
+      (location.cpes || []).some(c => c.multicustomerClient === 'Kinwel' || c.serviceType?.includes('Kinwel'))
+    );
+    const isIpVoice = !isKinwel && (
+      location.multicustomerClient === 'IP Voice Group' || 
+      location.multicustomerClient === 'IP Services Group' || 
+      (location.cpes || []).some(c => c.multicustomerClient === 'IP Voice Group' || c.multicustomerClient === 'IP Services Group' || c.serviceType?.includes('IP Voice') || c.serviceType?.includes('IP Services'))
+    );
+    const clientName: MulticustomerClient = isKinwel ? 'Kinwel' : (isIpVoice ? 'IP Voice Group' : (location.multicustomerClient || 'Esprit'));
     const cfg = getEspritConfigByNumber(rawVal, clientName);
+    const defaultSubnet = clientName === 'Kinwel' ? '255.255.254.0 (/23)' : '255.255.252.0 (/22)';
     const updatedCpes = location.cpes.map((c, idx) => {
-      const is006 = idx === 0 || c.hostname.includes('006');
+      const is006 = idx === 0 || c.hostname.includes('006') || c.hostname.includes('ASD-002');
       const medData = is006 ? cfg.mediant006 : cfg.mediant007;
       const hostname = is006 
-        ? (cfg.hostname006 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-006' : 'Mediant 006'))
-        : (cfg.hostname007 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-002' : 'Mediant 007'));
+        ? (cfg.hostname006 || (clientName === 'Kinwel' ? 'DS4-M2600-ASD-002' : (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-006' : 'Mediant 006')))
+        : (cfg.hostname007 || (clientName === 'Kinwel' ? 'DS4-M2600-ASD-005' : (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-002' : 'Mediant 007')));
       return {
         ...c,
         hostname,
@@ -156,7 +167,7 @@ export function LocationForm({
         multicustomerConfigNr: cfg.configNr,
         wanIp: medData.wanIp,
         lanIpCpe: medData.lanIp,
-        lanSubnet: '255.255.252.0 (/22)',
+        lanSubnet: defaultSubnet,
         defaultGateway: cfg.sipLanIpGw,
         ...(is006 ? {
           pbxs: [{
@@ -198,9 +209,9 @@ export function LocationForm({
   };
 
   const updateCpe = (cpeId: string, field: keyof CPEConfig, value: any) => {
-    const isMultiVal = value === 'Multicustomer' || value === 'Multicustomer - Esprit' || value === 'Multicustomer Esprit' || value === 'Multicustomer IP Voice Group' || value === 'Multicustomer IP Services Group' || String(value).startsWith('Multicustomer');
+    const isMultiVal = value === 'Multicustomer' || value === 'Multicustomer - Esprit' || value === 'Multicustomer Esprit' || value === 'Multicustomer IP Voice Group' || value === 'Multicustomer IP Services Group' || value === 'Multicustomer Kinwel' || String(value).startsWith('Multicustomer');
     if (field === 'serviceType' && isMultiVal) {
-      const clientName: MulticustomerClient = (String(value).includes('IP Voice Group') || String(value).includes('IP Services Group')) ? 'IP Voice Group' : 'Esprit';
+      const clientName: MulticustomerClient = String(value).includes('Kinwel') ? 'Kinwel' : ((String(value).includes('IP Voice Group') || String(value).includes('IP Services Group')) ? 'IP Voice Group' : 'Esprit');
       handleSelectEspritClient('001', clientName, String(value));
       return;
     }
@@ -726,16 +737,21 @@ export function LocationForm({
                           darkMode ? 'bg-slate-900 border-slate-800 text-slate-300' : 'bg-white border-slate-200 text-slate-700'
                         }`}>
                           {(() => {
-                            const isIpVoice = cpe.multicustomerClient === 'IP Voice Group' || cpe.multicustomerClient === 'IP Services Group' || location.multicustomerClient === 'IP Voice Group' || location.multicustomerClient === 'IP Services Group' || cpe.serviceType?.includes('IP Voice');
-                            const cfg = getEspritConfigByNumber(cpe.multicustomerConfigNr || '001', isIpVoice ? 'IP Voice Group' : 'Esprit');
+                            const isKinwel = cpe.multicustomerClient === 'Kinwel' || location.multicustomerClient === 'Kinwel' || cpe.serviceType?.includes('Kinwel');
+                            const isIpVoice = !isKinwel && (cpe.multicustomerClient === 'IP Voice Group' || cpe.multicustomerClient === 'IP Services Group' || location.multicustomerClient === 'IP Voice Group' || location.multicustomerClient === 'IP Services Group' || cpe.serviceType?.includes('IP Voice'));
+                            const clientName: MulticustomerClient = isKinwel ? 'Kinwel' : (isIpVoice ? 'IP Voice Group' : 'Esprit');
+                            const cfg = getEspritConfigByNumber(cpe.multicustomerConfigNr || '001', clientName);
+                            const displayTitle = isKinwel 
+                              ? 'Kinwel Multicustomer (DS4)' 
+                              : (isIpVoice ? 'IP Voice Group Multicustomer (UFC)' : 'Esprit Multicustomer (N2G)');
                             return (
                               <>
                                 <div className="font-bold text-blue-600 dark:text-blue-400">
-                                  {isIpVoice ? 'IP Voice Group Multicustomer (UFC)' : 'Esprit Multicustomer (N2G)'}
+                                  {displayTitle}
                                 </div>
                                 <div className="text-slate-500 mt-0.5">Multi Customer Mediant</div>
-                                <div>{cfg.hostname006 || (isIpVoice ? 'UFC-M2600-ASD-006' : 'N2G-M4000-ASD-006')}</div>
-                                <div>{cfg.hostname007 || (isIpVoice ? 'UFC-M2600-ASD-002' : 'N2G-M4000-ASD-007')}</div>
+                                <div>{cfg.hostname006 || (isKinwel ? 'DS4-M2600-ASD-002' : (isIpVoice ? 'UFC-M2600-ASD-006' : 'N2G-M4000-ASD-006'))}</div>
+                                <div>{cfg.hostname007 || (isKinwel ? 'DS4-M2600-ASD-005' : (isIpVoice ? 'UFC-M2600-ASD-002' : 'N2G-M4000-ASD-007'))}</div>
                                 <div className="font-bold text-slate-800 dark:text-slate-200 mt-0.5 flex items-center justify-between">
                                   <span>config nr. / SRD: {cpe.multicustomerConfigNr || '001'}</span>
                                   <span className="text-slate-400 font-mono text-[10px]">{cfg.customerId}</span>

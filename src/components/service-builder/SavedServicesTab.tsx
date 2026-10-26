@@ -40,10 +40,10 @@ export function SavedServicesTab({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-bold text-slate-800 dark:text-slate-100">
-            Beheer van Ingebouwde &amp; Zelf Samengestelde Templates
+            Bestaande Diensten &amp; Templates
           </h3>
           <p className="text-xs text-slate-400">
-            Alle templates die beschikbaar zijn in de dropdown-lijsten van locaties en apparatuur.
+            Alle bestaande ingebouwde diensten en eigen templates die beschikbaar zijn. Kies een dienst om als basis te laden in de Studio.
           </p>
         </div>
 

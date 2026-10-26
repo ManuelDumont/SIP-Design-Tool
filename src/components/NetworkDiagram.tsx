@@ -266,26 +266,33 @@ export function NetworkDiagram({
       const locHasMulti = loc.isMulticustomer || (loc.cpes || []).some(c => c.serviceType === 'Multicustomer' || c.serviceType === 'Multicustomer Esprit' || c.serviceType === 'Multicustomer - Esprit' || c.serviceType?.startsWith('Multicustomer') || c.isMulticustomer);
       if (!locHasMulti) return loc;
 
-      const clientName: MulticustomerClient = (
+      const isKinwel = (
+        loc.multicustomerClient === 'Kinwel' || 
+        (loc.cpes || []).some(c => c.multicustomerClient === 'Kinwel' || c.serviceType?.includes('Kinwel'))
+      );
+      const isIpVoice = !isKinwel && (
         loc.multicustomerClient === 'IP Voice Group' || 
         loc.multicustomerClient === 'IP Services Group' || 
         (loc.cpes || []).some(c => c.multicustomerClient === 'IP Voice Group' || c.multicustomerClient === 'IP Services Group' || c.serviceType?.includes('IP Voice') || c.serviceType?.includes('IP Services'))
-      ) ? 'IP Voice Group' : 'Esprit';
+      );
+
+      const clientName: MulticustomerClient = isKinwel ? 'Kinwel' : (isIpVoice ? 'IP Voice Group' : 'Esprit');
 
       if (field === 'multicustomerConfigNr') {
         const espritCfg = getEspritConfigByNumber(cleanVal, clientName);
         const cfg3 = espritCfg.configNr;
+        const defaultSubnet = clientName === 'Kinwel' ? '255.255.254.0 (/23)' : '255.255.252.0 (/22)';
         return {
           ...loc,
           multicustomerClient: clientName,
           multicustomerConfigNr: cfg3,
           cpes: (loc.cpes || []).map((cpe, idx) => {
-            if (cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer Esprit' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType === 'Multicustomer IP Voice Group' || cpe.serviceType?.startsWith('Multicustomer') || cpe.isMulticustomer) {
-              const is006 = idx === 0 || cpe.hostname.includes('006') || cpe.hostname.includes('ASD-006');
+            if (cpe.serviceType === 'Multicustomer' || cpe.serviceType === 'Multicustomer Esprit' || cpe.serviceType === 'Multicustomer - Esprit' || cpe.serviceType === 'Multicustomer IP Voice Group' || cpe.serviceType === 'Multicustomer Kinwel' || cpe.serviceType?.startsWith('Multicustomer') || cpe.isMulticustomer) {
+              const is006 = idx === 0 || cpe.hostname.includes('006') || cpe.hostname.includes('ASD-006') || cpe.hostname.includes('ASD-002');
               const medData = is006 ? espritCfg.mediant006 : espritCfg.mediant007;
               const hostname = is006 
-                ? (espritCfg.hostname006 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-006' : 'Mediant 006'))
-                : (espritCfg.hostname007 || (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-002' : 'Mediant 007'));
+                ? (espritCfg.hostname006 || (clientName === 'Kinwel' ? 'DS4-M2600-ASD-002' : (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-006' : 'Mediant 006')))
+                : (espritCfg.hostname007 || (clientName === 'Kinwel' ? 'DS4-M2600-ASD-005' : (clientName === 'IP Voice Group' ? 'UFC-M2600-ASD-002' : 'Mediant 007')));
               return {
                 ...cpe,
                 hostname,
@@ -293,7 +300,7 @@ export function NetworkDiagram({
                 multicustomerConfigNr: cfg3,
                 wanIp: medData.wanIp,
                 lanIpCpe: medData.lanIp,
-                lanSubnet: '255.255.252.0 (/22)',
+                lanSubnet: defaultSubnet,
                 defaultGateway: espritCfg.sipLanIpGw,
                 ...(is006 ? {
                   pbxs: [{
@@ -445,6 +452,12 @@ export function NetworkDiagram({
   const multicustomerInfo = (() => {
     for (const loc of locations) {
       const allCpes = loc.cpes || [];
+      const hasKinwelCpe = allCpes.some(c => 
+        c.serviceType === 'Multicustomer Kinwel' || 
+        c.serviceType === 'Multicustomer - Kinwel' ||
+        c.serviceType?.includes('Kinwel') ||
+        c.multicustomerClient === 'Kinwel'
+      );
       const hasIpVoiceCpe = allCpes.some(c => 
         c.serviceType === 'Multicustomer IP Voice Group' || 
         c.serviceType === 'Multicustomer - IP Voice Group' ||
@@ -462,6 +475,8 @@ export function NetworkDiagram({
         c.serviceType === 'Multicustomer - IP Voice Group' || 
         c.serviceType === 'Multicustomer IP Services Group' || 
         c.serviceType === 'Multicustomer - IP Services Group' || 
+        c.serviceType === 'Multicustomer Kinwel' || 
+        c.serviceType === 'Multicustomer - Kinwel' || 
         c.serviceType?.startsWith('Multicustomer') || 
         c.isMulticustomer || 
         c.multicustomerClient
@@ -469,7 +484,9 @@ export function NetworkDiagram({
 
       if (loc.isMulticustomer || cpe) {
         let client: MulticustomerClient = 'Esprit';
-        if (hasIpVoiceCpe || loc.multicustomerClient === 'IP Voice Group' || loc.multicustomerClient === 'IP Services Group' || cpe?.multicustomerClient === 'IP Voice Group' || cpe?.multicustomerClient === 'IP Services Group') {
+        if (hasKinwelCpe || loc.multicustomerClient === 'Kinwel' || cpe?.multicustomerClient === 'Kinwel') {
+          client = 'Kinwel';
+        } else if (hasIpVoiceCpe || loc.multicustomerClient === 'IP Voice Group' || loc.multicustomerClient === 'IP Services Group' || cpe?.multicustomerClient === 'IP Voice Group' || cpe?.multicustomerClient === 'IP Services Group') {
           client = 'IP Voice Group';
         } else if (cpe?.multicustomerClient) {
           client = cpe.multicustomerClient;
@@ -495,17 +512,21 @@ export function NetworkDiagram({
     loc.multicustomerClient === 'Esprit' || 
     loc.multicustomerClient === 'IP Voice Group' || 
     loc.multicustomerClient === 'IP Services Group' || 
+    loc.multicustomerClient === 'Kinwel' || 
     (loc.cpes || []).some(c => 
       c.isMulticustomer ||
       c.multicustomerClient === 'Esprit' || 
       c.multicustomerClient === 'IP Voice Group' || 
       c.multicustomerClient === 'IP Services Group' || 
+      c.multicustomerClient === 'Kinwel' || 
       c.serviceType === 'Multicustomer Esprit' || 
       c.serviceType === 'Multicustomer - Esprit' ||
       c.serviceType === 'Multicustomer IP Voice Group' ||
       c.serviceType === 'Multicustomer - IP Voice Group' ||
       c.serviceType === 'Multicustomer IP Services Group' ||
       c.serviceType === 'Multicustomer - IP Services Group' ||
+      c.serviceType === 'Multicustomer Kinwel' ||
+      c.serviceType === 'Multicustomer - Kinwel' ||
       c.serviceType?.startsWith('Multicustomer')
     )
   );
@@ -539,7 +560,11 @@ export function NetworkDiagram({
     customerParts.push(effectiveProjectNumber.trim());
   }
 
-  const activeClientName = multicustomerInfo?.client || (locations.some(l => l.multicustomerClient === 'IP Services Group' || (l.cpes || []).some(c => c.serviceType?.includes('IP Services Group') || c.multicustomerClient === 'IP Services Group')) ? 'IP Services Group' : 'Esprit');
+  const activeClientName = multicustomerInfo?.client || (
+    locations.some(l => l.multicustomerClient === 'Kinwel' || (l.cpes || []).some(c => c.serviceType?.includes('Kinwel') || c.multicustomerClient === 'Kinwel')) ? 'Kinwel' : (
+      locations.some(l => l.multicustomerClient === 'IP Services Group' || (l.cpes || []).some(c => c.serviceType?.includes('IP Services Group') || c.multicustomerClient === 'IP Services Group')) ? 'IP Services Group' : 'Esprit'
+    )
+  );
 
   const headerTitle = isEspritMulti
     ? `${activeClientName} MultiCustomer: ${effectiveCustomerName.trim()}${effectiveProjectNumber.trim() ? ` - ${effectiveProjectNumber.trim()}` : ''}`
@@ -950,10 +975,10 @@ export function NetworkDiagram({
       const clusterClient: MulticustomerClient = (
         clusterCpes.find(c => c.multicustomerClient)?.multicustomerClient || 
         loc.multicustomerClient || 
-        (clusterCpes.some(c => c.serviceType?.includes('IP Voice') || c.serviceType?.includes('IP Services')) ? 'IP Voice Group' : 'Esprit')
+        (clusterCpes.some(c => c.serviceType?.includes('Kinwel')) ? 'Kinwel' : (clusterCpes.some(c => c.serviceType?.includes('IP Voice') || c.serviceType?.includes('IP Services')) ? 'IP Voice Group' : 'Esprit'))
       );
       if (isEspritCluster) {
-        subnetLabel = (clusterClient === 'IP Voice Group' || clusterClient === 'IP Services Group') ? '10.69.68.0/22' : '10.20.0.0/22';
+        subnetLabel = (clusterClient === 'Kinwel') ? '10.231.250.0/23' : ((clusterClient === 'IP Voice Group' || clusterClient === 'IP Services Group') ? '10.69.68.0/22' : '10.20.0.0/22');
       } else if (firstWithValidIp) {
         const ip = (firstWithValidIp.serviceType === 'CN' && firstWithValidIp.cnLanIp) ? firstWithValidIp.cnLanIp : firstWithValidIp.lanIpCpe;
         const cidr = getCidrFromSubnetString(firstWithValidIp.lanSubnet);
@@ -1839,7 +1864,7 @@ export function NetworkDiagram({
                     const cpeKey = `cpe-${c.id}`;
                     const cpeScale = customSizes[cpeKey]?.scale || 1;
                     const halfW = (100 * cpeScale) / 2;
-                    const is007 = c.hostname?.includes('007');
+                    const is007 = c.hostname?.includes('007') || c.hostname?.includes('005') || (c.hostname?.includes('002') && (c.hostname?.includes('UFC') || c.multicustomerClient === 'IP Voice Group')) || (group.cpes.indexOf(c) === 1);
                     const hasLeftIpBox = !is007;
                     return c.cpeX - (hasLeftIpBox ? (halfW + 180) : (halfW + 40));
                   });
@@ -1848,7 +1873,7 @@ export function NetworkDiagram({
                     const cpeKey = `cpe-${c.id}`;
                     const cpeScale = customSizes[cpeKey]?.scale || 1;
                     const halfW = (100 * cpeScale) / 2;
-                    const is007 = c.hostname?.includes('007');
+                    const is007 = c.hostname?.includes('007') || c.hostname?.includes('005') || (c.hostname?.includes('002') && (c.hostname?.includes('UFC') || c.multicustomerClient === 'IP Voice Group')) || (group.cpes.indexOf(c) === 1);
                     const isVovCn = c.serviceType === 'VOV+CN' || c.serviceType === 'VOV & CN' || c.serviceType === 'VOV + CN' || Boolean(findServiceDefinition(c.serviceType)?.hasCn);
                     const hasRightIpBox = is007 || isVovCn;
                     let rightPos = c.cpeX + (hasRightIpBox ? (halfW + 180) : (halfW + 40));
@@ -1974,8 +1999,8 @@ export function NetworkDiagram({
                         );
                       }
 
-                      const isEsprit = (cpe.serviceType === 'Multicustomer' || cpe.isMulticustomer) && (cpe.multicustomerClient === 'Esprit' || isEspritMulti);
-                      const is007 = cpe.hostname?.includes('007') || cpe.hostname?.includes('002') || (isEsprit && cpeIndex === 1);
+                      const isEsprit = Boolean(cpe.serviceType === 'Multicustomer' || cpe.isMulticustomer || cpe.serviceType?.startsWith('Multicustomer') || cpe.multicustomerClient || isEspritMulti || multicustomerInfo);
+                      const is007 = cpe.hostname?.includes('007') || cpe.hostname?.includes('005') || (cpe.hostname?.includes('002') && (cpe.hostname?.includes('UFC') || cpe.multicustomerClient === 'IP Voice Group')) || (isEsprit && cpeIndex === 1);
 
                       if (is007) {
                         return (

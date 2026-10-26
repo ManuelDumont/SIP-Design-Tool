@@ -24,24 +24,35 @@ export function DiagramMulticustomerBlock({
   if (!multicustomerInfo) return null;
 
   const allMappedCpes = groups.flatMap(g => g.cpes);
-  const targetCpeForCard = allMappedCpes.find((c: any) => c.hostname?.includes('007') || c.hostname?.includes('002')) || (allMappedCpes.length > 1 ? allMappedCpes[1] : allMappedCpes[0]);
-  const defaultCardLeft = targetCpeForCard ? (targetCpeForCard.cpeX + 50) : (TOTAL_WIDTH - 300);
+  const targetCpeForCard = allMappedCpes.find((c: any) => 
+    c.hostname?.includes('007') || 
+    c.hostname?.includes('005') || 
+    c.hostname === 'UFC-M2600-ASD-002'
+  ) || (allMappedCpes.length > 1 ? allMappedCpes[1] : allMappedCpes[0]);
+  const defaultCardLeft = targetCpeForCard ? (targetCpeForCard.cpeX + 220) : (TOTAL_WIDTH - 300);
   const defaultCardTop = 240;
 
   const rawClient = multicustomerInfo.client || '';
-  const isIpVoice = (
+  const isKinwel = (
+    rawClient === 'Kinwel' ||
+    rawClient.includes('Kinwel') ||
+    allMappedCpes.some((c: any) => c.serviceType?.includes('Kinwel') || c.multicustomerClient === 'Kinwel')
+  );
+  const isIpVoice = !isKinwel && (
     rawClient === 'IP Voice Group' || 
     rawClient === 'IP Services Group' || 
     rawClient.includes('IP Voice') || 
     rawClient.includes('IP Services') ||
     allMappedCpes.some((c: any) => c.serviceType?.includes('IP Voice') || c.serviceType?.includes('IP Services') || c.multicustomerClient === 'IP Voice Group' || c.multicustomerClient === 'IP Services Group')
   );
-  const clientName = isIpVoice ? 'IP Voice Group' : (rawClient || 'Esprit');
+  const clientName = isKinwel ? 'Kinwel' : (isIpVoice ? 'IP Voice Group' : (rawClient || 'Esprit'));
   const espritCfg = getEspritConfigByNumber(multicustomerInfo.configNr, clientName);
 
-  const displayTitle = isIpVoice ? 'IP Voice Group Multicustomer (UFC)' : 'Esprit Multicustomer (N2G)';
-  const hostname006 = espritCfg.hostname006 || (isIpVoice ? 'UFC-M2600-ASD-006' : 'N2G-M4000-ASD-006');
-  const hostname007 = espritCfg.hostname007 || (isIpVoice ? 'UFC-M2600-ASD-002' : 'N2G-M4000-ASD-007');
+  const displayTitle = isKinwel 
+    ? 'Kinwel Multicustomer (DS4)' 
+    : (isIpVoice ? 'IP Voice Group Multicustomer (UFC)' : 'Esprit Multicustomer (N2G)');
+  const hostname006 = espritCfg.hostname006 || (isKinwel ? 'DS4-M2600-ASD-002' : (isIpVoice ? 'UFC-M2600-ASD-006' : 'N2G-M4000-ASD-006'));
+  const hostname007 = espritCfg.hostname007 || (isKinwel ? 'DS4-M2600-ASD-005' : (isIpVoice ? 'UFC-M2600-ASD-002' : 'N2G-M4000-ASD-007'));
 
   return (
     <div 
@@ -81,6 +92,14 @@ export function DiagramMulticustomerBlock({
           <div>{hostname006}</div>
           <div>{hostname007}</div>
         </div>
+        {espritCfg.vlanNr && (
+          <div className="text-[11px] font-semibold text-slate-600 dark:text-slate-400 flex items-center justify-between pt-0.5">
+            <span>IP-VPN vlan nr:</span>
+            <span className="font-mono font-extrabold text-blue-600 dark:text-blue-400 bg-blue-50/80 dark:bg-slate-800 px-1.5 py-0.5 rounded border border-blue-200 dark:border-slate-600">
+              {espritCfg.vlanNr}
+            </span>
+          </div>
+        )}
         <div className="pt-1 text-xs font-bold text-slate-700 dark:text-slate-300 flex items-center justify-between gap-1.5">
           <div className="flex items-center gap-1.5">
             <span>config nr. / SRD:</span>
